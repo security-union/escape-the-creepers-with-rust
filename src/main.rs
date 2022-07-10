@@ -50,8 +50,10 @@ impl Reducible for Game {
         match action {
             GameEvents::StartGameWithCreepers(creepers, rows, columns) => {
                 // spawn creepers
+                log!("1");
                 let mut randy = thread_rng();
-                let creepers = (1..creepers)
+                log!("2");
+                let creepers = (0..creepers)
                     .into_iter()
                     .map(|_i| {
                         let row = randy.gen_range(0..rows);
@@ -61,16 +63,20 @@ impl Reducible for Game {
                         }
                     })
                     .collect();
-
+                log!("3");
                 // TODO: validate that steve does not spawn next or on top of a creeper.
                 let row = randy.gen_range(0..rows);
+                log!("4");
                 let column = randy.gen_range(0..columns);
+                log!("5");
                 let steve = Steve {
                     location: Location { row, column },
                 };
+                log!("6");
                 let moves = vec![GameState { creepers, steve }];
+                log!("7");
 
-                Self {
+                Game {
                     rows: rows,
                     columns: columns,
                     moves,
@@ -135,8 +141,8 @@ fn cell(p: &CellProps) -> Html {
 
     html! {
         <div class = "cell">
-            {row}{","}{column}
-            {"is_creeper: "}{is_creeper}
+            <div>{row}{","}{column}</div>
+            <div>{is_creeper}</div>
         </div>
     }
 }
@@ -146,18 +152,14 @@ fn game_root_component() -> Html {
     let game_state = use_context::<UseReducerHandle<Game>>().unwrap();
 
     use_effect_with_deps(
-        {
+        move |_| {
+            log!("rebuilding component");
             game_state.dispatch(GameEvents::StartGameWithCreepers(CREEPERS, ROWS, COLUMNS));
             let game_state = game_state.clone();
 
-            move |_| {
-                // i intervals get out of scope they get dropped and destroyed
-                let interval = Interval::new(100, move || game_state.dispatch(GameEvents::Tick));
-
-                // So we move it into the clean up function, rust will consider this still being used and wont drop it
-                // then we just drop it ourselves in the cleanup
-                move || drop(interval)
-            }
+            // i intervals get out of scope they get dropped and destroyed
+            let interval = Interval::new(100, move || game_state.dispatch(GameEvents::Tick));
+            move || drop(interval)
         },
         (), // Only create the interval once per your component existence
     );
