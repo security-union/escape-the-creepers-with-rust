@@ -105,8 +105,10 @@ fn insert_if_not_creeper(
     vector: &mut Vec<VertexId>,
     value: VertexId,
     creepers_map: &HashMap<VertexId, bool>,
+    target: &Location,
 ) {
-    if !creepers_map.contains_key(&value) {
+    let (row, column) = value;
+    if !creepers_map.contains_key(&value) ||  Location::from(row, column) == *target {
         vector.push(value);
     }
 }
@@ -116,6 +118,7 @@ impl Game {
         let (row, column) = vertex_id;
         let mut vertices: Vec<VertexId> = vec![];
         let mut creepers_map: HashMap<VertexId, bool> = HashMap::new();
+        let target = &self.target;
         if let Some(game_state) = self.moves.last() {
             for creeper in &game_state.creepers {
                 // do not insert just the creeper current location, add +1 -1 buffer around it.
@@ -135,37 +138,37 @@ impl Game {
         if column > 0 {
             // up
             if row > 0 {
-                insert_if_not_creeper(&mut vertices, (row - 1, column - 1), &creepers_map);
+                insert_if_not_creeper(&mut vertices, (row - 1, column - 1), &creepers_map, &target);
             }
             // left
-            insert_if_not_creeper(&mut vertices, (row, column - 1), &creepers_map);
+            insert_if_not_creeper(&mut vertices, (row, column - 1), &creepers_map, &target);
             // bottom left
             if row < self.rows - 1 {
-                insert_if_not_creeper(&mut vertices, (row + 1, column - 1), &creepers_map);
+                insert_if_not_creeper(&mut vertices, (row + 1, column - 1), &creepers_map, &target);
             }
         }
         // center
         {
             if row > 0 {
-                insert_if_not_creeper(&mut vertices, (row - 1, column), &creepers_map);
+                insert_if_not_creeper(&mut vertices, (row - 1, column), &creepers_map, &target);
             }
             // center bottom
             if row < self.rows - 1 {
-                insert_if_not_creeper(&mut vertices, (row + 1, column), &creepers_map);
+                insert_if_not_creeper(&mut vertices, (row + 1, column), &creepers_map, &target);
             }
         }
         // right
         if column < self.columns - 1 {
             // up
             if row > 0 {
-                insert_if_not_creeper(&mut vertices, (row - 1, column + 1), &creepers_map);
+                insert_if_not_creeper(&mut vertices, (row - 1, column + 1), &creepers_map, &target);
             }
             // left
-            insert_if_not_creeper(&mut vertices, (row, column + 1), &creepers_map);
+            insert_if_not_creeper(&mut vertices, (row, column + 1), &creepers_map, &target);
 
             // bottom left
             if row < self.rows - 1 {
-                insert_if_not_creeper(&mut vertices, (row + 1, column + 1), &creepers_map);
+                insert_if_not_creeper(&mut vertices, (row + 1, column + 1), &creepers_map, &target);
             }
         }
         vertices
