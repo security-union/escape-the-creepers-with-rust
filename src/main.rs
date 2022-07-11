@@ -38,6 +38,10 @@ struct CellProps {
 #[function_component(Cell)]
 fn cell(p: &CellProps) -> Html {
     let CellProps { row, column } = p;
+    let current_location = Location {
+        row: *row,
+        column: *column,
+    };
     let game_state = use_context::<UseReducerHandle<Game>>().unwrap();
     // If creeper print it.
     let is_creeper = game_state
@@ -63,6 +67,12 @@ fn cell(p: &CellProps) -> Html {
         .unwrap_or(false);
 
     let is_home = game_state.target.row == *row && game_state.target.column == *column;
+
+    let is_path = game_state
+        .moves
+        .last()
+        .map(|g| g.ferris.path.contains(&current_location))
+        .unwrap_or(false);
 
     let ferris_image = if is_ferris {
         html! {
@@ -94,12 +104,23 @@ fn cell(p: &CellProps) -> Html {
         }
     };
 
+    let is_path_image = if is_path && !is_home {
+        html! {
+            <img width="100%" src="thumbnail/trail.png"/>
+        }
+    } else {
+        html! {
+            <></>
+        }
+    };
+
     html! {
         <div class = "cell">
             // <div>{row}{","}{column}</div>
             {creeper_image}
             {ferris_image}
             {home_image}
+            {is_path_image}
         </div>
     }
 }

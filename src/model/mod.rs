@@ -16,6 +16,10 @@ impl Location {
     pub fn id(&self) -> VertexId {
         (self.row, self.column)
     }
+
+    pub fn from(row: i32, column: i32) -> Location {
+        Location { row, column }
+    }
 }
 
 pub enum GameEvents {
@@ -78,18 +82,19 @@ impl Reducible for Game {
                 let column = randy.gen_range(0..columns);
                 let target = Location { row, column };
                 let moves = vec![GameState { creepers, ferris }];
-
-                Game {
+                let mut game = Game {
                     rows: rows,
                     columns: columns,
                     moves,
                     target,
-                }
-                .into()
+                };
+                let result = Dijkstra::run(&game);
+                let mut ferris = &mut game.moves.last_mut().unwrap().ferris;
+                ferris.path = result;
+                game.into()
             }
             GameEvents::Tick => {
                 log!("tick");
-                let result = Dijkstra::run(self.as_ref());
                 self.clone().into()
             }
         }
@@ -119,6 +124,7 @@ impl Game {
                 creepers_map.insert((row, column - 1), true);
                 creepers_map.insert((row + 1, column - 1), true);
                 creepers_map.insert((row - 1, column), true);
+                creepers_map.insert((row, column), true);
                 creepers_map.insert((row + 1, column), true);
                 creepers_map.insert((row - 1, column + 1), true);
                 creepers_map.insert((row, column + 1), true);
@@ -165,16 +171,25 @@ impl Game {
         vertices
     }
 
-    pub fn get_weighted_edge(&self, current_vertex: VertexId, neighbor: VertexId) -> f32 {
+    pub fn get_weighted_edge(&self, current_vertex: VertexId, neighbor: VertexId) -> i32 {
         // TODO: add distance to target.
         let target = &self.target;
         let (row, column) = neighbor;
-        ((target.row - row).pow(2) as f32 + (target.column - column).pow(2) as f32).sqrt()
+        let distance = (((target.row - row).pow(2) as f32 + (target.column - column).pow(2) as f32)
+            .sqrt()
+            * 10f32) as i32;
+        println!(
+            "distance from {:?} to {:?} = {}",
+            current_vertex, neighbor, distance
+        );
+        distance
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::model::{Creeper, GameState};
+
     use super::{Game, Location};
 
     #[test]
@@ -222,6 +237,27 @@ mod tests {
         };
         let adjacent_vertices = game.get_adjacent_vertices((9, 9));
         let expected_vertices = vec![(8, 8), (9, 8), (8, 9)];
+        assert_eq!(adjacent_vertices, expected_vertices);
+    }
+
+    #[test]
+    fn get_adjacent_vertices_with_creepers() {
+        let game = Game {
+            moves: vec![GameState {
+                creepers: vec![Creeper {
+                    location: Location { row: 5, column: 4 },
+                }],
+                ferris: crate::model::Ferris {
+                    location: Location { row: 1, column: 1 },
+                    path: vec![],
+                },
+            }],
+            rows: 10,
+            columns: 10,
+            target: Location { row: 0, column: 0 },
+        };
+        let adjacent_vertices = game.get_adjacent_vertices((5, 5));
+        let expected_vertices = vec![(4, 6), (5, 6), (6, 6)];
         assert_eq!(adjacent_vertices, expected_vertices);
     }
 }
