@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::Hash};
 
-use priority_queue::PriorityQueue;
+use priority_queue::{DoublePriorityQueue, PriorityQueue};
 
 use crate::model::{Game, Location, VertexId};
 
@@ -71,7 +71,7 @@ impl Dijkstra {
         // generate all nodes.
         let mut distance_table: HashMap<VertexId, DistanceInfo> = HashMap::new();
         let mut vertex_info_map: HashMap<VertexId, VertexInfo> = HashMap::new();
-        let mut queue: PriorityQueue<VertexId, i32> = PriorityQueue::new();
+        let mut queue: DoublePriorityQueue<VertexId, i32> = DoublePriorityQueue::new();
         for row in 0..game.rows {
             for column in 0..game.columns {
                 distance_table.insert(Location { row, column }.id(), DistanceInfo::default());
@@ -88,7 +88,7 @@ impl Dijkstra {
         vertex_info_map.insert(ferris_location.id(), source_vertex_info.clone());
         queue.push(source_vertex_info.vertex, source_vertex_info.distance);
 
-        while let Some(vertex_info) = queue.pop() {
+        while let Some(vertex_info) = queue.pop_min() {
             let current_vertex = vertex_info.0;
             for neighbor in game.get_adjacent_vertices(current_vertex) {
                 // Get the new distance, account for the weighted edge.
@@ -148,9 +148,8 @@ mod tests {
         };
         let shortest_path = Dijkstra::run(&game);
         let expected_shortest_path = vec![
-            Location { row: 1, column: 0 },
-            Location { row: 2, column: 1 },
-            Location { row: 1, column: 2 },
+            Location { row: 0, column: 1 },
+            Location { row: 0, column: 2 },
             Location { row: 0, column: 3 },
         ];
         assert_eq!(shortest_path, expected_shortest_path);
@@ -222,15 +221,13 @@ mod tests {
         };
         let shortest_path = Dijkstra::run(&game);
         let expected_shortest_path = vec![
-            Location { row: 1, column: 1 },
-            Location { row: 0, column: 2 },
-            Location { row: 0, column: 3 },
-            Location { row: 1, column: 4 },
-            Location { row: 2, column: 5 },
-            Location { row: 3, column: 6 },
-            Location { row: 4, column: 6 },
-            Location { row: 5, column: 6 },
-            Location { row: 6, column: 6 },
+            Location { row: 3, column: 2 },
+            Location { row: 4, column: 2 },
+            Location { row: 5, column: 2 },
+            Location { row: 6, column: 3 },
+            Location { row: 7, column: 4 },
+            Location { row: 7, column: 5 },
+            Location { row: 7, column: 6 },
             Location { row: 7, column: 7 },
         ];
         assert_eq!(shortest_path, expected_shortest_path);
@@ -254,18 +251,7 @@ mod tests {
         };
         let shortest_path = Dijkstra::run(&game);
         let expected_shortest_path = vec![
-            Location { row: 3, column: 2 },
-            Location { row: 2, column: 1 },
-            Location { row: 3, column: 0 },
-            Location { row: 4, column: 0 },
-            Location { row: 5, column: 0 },
-            Location { row: 6, column: 0 },
-            Location { row: 7, column: 0 },
-            Location { row: 8, column: 0 },
-            Location { row: 9, column: 1 },
-            Location { row: 8, column: 2 },
-            Location { row: 7, column: 3 },
-            Location { row: 6, column: 4 },
+            Location { row: 5, column: 4 },
             Location { row: 5, column: 5 },
         ];
         assert_eq!(shortest_path, expected_shortest_path);

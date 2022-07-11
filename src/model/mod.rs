@@ -108,7 +108,7 @@ fn insert_if_not_creeper(
     target: &Location,
 ) {
     let (row, column) = value;
-    if !creepers_map.contains_key(&value) ||  Location::from(row, column) == *target {
+    if !creepers_map.contains_key(&value) || Location::from(row, column) == *target {
         vector.push(value);
     }
 }
@@ -180,7 +180,7 @@ impl Game {
         let (row, column) = neighbor;
         let distance = (((target.row - row).pow(2) as f32 + (target.column - column).pow(2) as f32)
             .sqrt()
-            * 10f32) as i32;
+            * 1000f32) as i32;
         println!(
             "distance from {:?} to {:?} = {}",
             current_vertex, neighbor, distance

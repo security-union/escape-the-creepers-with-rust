@@ -5,7 +5,7 @@ use yew::{prelude::*, virtual_dom::VNode};
 
 const ROWS: i32 = 24;
 const COLUMNS: i32 = 12;
-const CREEPERS: i16 = 5;
+const CREEPERS: i16 = 10;
 
 #[derive(Properties, Debug, PartialEq)]
 pub struct GameContextProviderProps {
