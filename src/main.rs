@@ -1,95 +1,11 @@
 use gloo_console::log;
-use gloo_timers::callback::Interval;
-use rand::{thread_rng, Rng};
-use std::rc::Rc;
+use survival::model::Location;
+use survival::model::{Game, GameEvents};
 use yew::{prelude::*, virtual_dom::VNode};
 
 const ROWS: i32 = 24;
 const COLUMNS: i32 = 12;
 const CREEPERS: i16 = 5;
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Location {
-    row: i32,
-    column: i32,
-}
-
-pub enum GameEvents {
-    StartGameWithCreepers(i16, i32, i32),
-    Tick, // Produced every time that we have to refresh.
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Creeper {
-    pub location: Location,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Steve {
-    pub location: Location,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct GameState {
-    pub creepers: Vec<Creeper>,
-    pub steve: Steve,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Game {
-    pub moves: Vec<GameState>,
-    pub rows: i32,
-    pub columns: i32,
-}
-
-impl Reducible for Game {
-    type Action = GameEvents;
-
-    fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
-        // process all events.
-        match action {
-            GameEvents::StartGameWithCreepers(creepers, rows, columns) => {
-                // spawn creepers
-                log!("1");
-                let mut randy = thread_rng();
-                log!("2");
-                let creepers = (0..creepers)
-                    .into_iter()
-                    .map(|_i| {
-                        let row = randy.gen_range(0..rows);
-                        let column = randy.gen_range(0..columns);
-                        Creeper {
-                            location: Location { row, column },
-                        }
-                    })
-                    .collect();
-                log!("3");
-                // TODO: validate that steve does not spawn next or on top of a creeper.
-                let row = randy.gen_range(0..rows);
-                log!("4");
-                let column = randy.gen_range(0..columns);
-                log!("5");
-                let steve = Steve {
-                    location: Location { row, column },
-                };
-                log!("6");
-                let moves = vec![GameState { creepers, steve }];
-                log!("7");
-
-                Game {
-                    rows: rows,
-                    columns: columns,
-                    moves,
-                }
-                .into()
-            }
-            GameEvents::Tick => {
-                log!("tick");
-                self.clone().into()
-            }
-        }
-    }
-}
 
 #[derive(Properties, Debug, PartialEq)]
 pub struct GameContextProviderProps {
@@ -103,6 +19,7 @@ pub fn GameContextProviderImpl(props: &GameContextProviderProps) -> Html {
         moves: vec![],
         rows: 0,
         columns: 0,
+        target: Location { row: 0, column: 0 },
     });
 
     html! {
@@ -139,10 +56,50 @@ fn cell(p: &CellProps) -> Html {
         })
         .unwrap_or(false);
 
+    let is_ferris = game_state
+        .moves
+        .last()
+        .map(|g| g.steve.location.row == *row && g.steve.location.column == *column)
+        .unwrap_or(false);
+
+    let is_home = game_state.target.row == *row && game_state.target.column == *column;
+
+    let ferris_image = if is_ferris {
+        html! {
+            <img width="100%" src="thumbnail/sadferris.png"/>
+        }
+    } else {
+        html! {
+            <></>
+        }
+    };
+
+    let creeper_image = if is_creeper {
+        html! {
+            <img width="100%" src="thumbnail/creeper2.png"/>
+        }
+    } else {
+        html! {
+            <></>
+        }
+    };
+
+    let home_image = if is_home {
+        html! {
+            <img width="100%" src="thumbnail/home.png"/>
+        }
+    } else {
+        html! {
+            <></>
+        }
+    };
+
     html! {
         <div class = "cell">
-            <div>{row}{","}{column}</div>
-            <div>{is_creeper}</div>
+            // <div>{row}{","}{column}</div>
+            {creeper_image}
+            {ferris_image}
+            {home_image}
         </div>
     }
 }
@@ -158,8 +115,8 @@ fn game_root_component() -> Html {
             let game_state = game_state.clone();
 
             // i intervals get out of scope they get dropped and destroyed
-            let interval = Interval::new(100, move || game_state.dispatch(GameEvents::Tick));
-            move || drop(interval)
+            // let interval = Interval::new(100, move || game_state.dispatch(GameEvents::Tick));
+            move || drop(game_state)
         },
         (), // Only create the interval once per your component existence
     );
