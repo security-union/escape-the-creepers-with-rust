@@ -1,7 +1,7 @@
 use crate::dijkstra::Dijkstra;
 use gloo_console::log;
 use rand::{thread_rng, Rng};
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 use yew::Reducible;
 
 pub type VertexId = (i32, i32);
@@ -96,48 +96,80 @@ impl Reducible for Game {
     }
 }
 
+fn insert_if_not_creeper(
+    vector: &mut Vec<VertexId>,
+    value: VertexId,
+    creepers_map: &HashMap<VertexId, bool>,
+) {
+    if !creepers_map.contains_key(&value) {
+        vector.push(value);
+    }
+}
+
 impl Game {
     pub fn get_adjacent_vertices(&self, vertex_id: VertexId) -> Vec<VertexId> {
         let (row, column) = vertex_id;
         let mut vertices: Vec<VertexId> = vec![];
-
+        let mut creepers_map: HashMap<VertexId, bool> = HashMap::new();
+        if let Some(game_state) = self.moves.last() {
+            for creeper in &game_state.creepers {
+                // do not insert just the creeper current location, add +1 -1 buffer around it.
+                let (row, column) = creeper.location.id();
+                creepers_map.insert((row - 1, column - 1), true);
+                creepers_map.insert((row, column - 1), true);
+                creepers_map.insert((row + 1, column - 1), true);
+                creepers_map.insert((row - 1, column), true);
+                creepers_map.insert((row + 1, column), true);
+                creepers_map.insert((row - 1, column + 1), true);
+                creepers_map.insert((row, column + 1), true);
+                creepers_map.insert((row + 1, column + 1), true);
+            }
+        }
         // left
         if column > 0 {
             // up
             if row > 0 {
-                vertices.push((row - 1, column - 1));
+                insert_if_not_creeper(&mut vertices, (row - 1, column - 1), &creepers_map);
             }
             // left
-            vertices.push((row, column - 1));
+            insert_if_not_creeper(&mut vertices, (row, column - 1), &creepers_map);
             // bottom left
             if row < self.rows - 1 {
-                vertices.push((row + 1, column - 1));
+                insert_if_not_creeper(&mut vertices, (row + 1, column - 1), &creepers_map);
             }
         }
         // center
         {
             if row > 0 {
-                vertices.push((row - 1, column));
+                insert_if_not_creeper(&mut vertices, (row - 1, column), &creepers_map);
             }
             // center bottom
             if row < self.rows - 1 {
-                vertices.push((row + 1, column));
+                insert_if_not_creeper(&mut vertices, (row + 1, column), &creepers_map);
             }
         }
         // right
         if column < self.columns - 1 {
             // up
             if row > 0 {
-                vertices.push((row - 1, column + 1));
+                insert_if_not_creeper(&mut vertices, (row - 1, column + 1), &creepers_map);
             }
             // left
-            vertices.push((row, column + 1));
+            insert_if_not_creeper(&mut vertices, (row, column + 1), &creepers_map);
+
             // bottom left
             if row < self.rows - 1 {
-                vertices.push((row + 1, column + 1));
+                insert_if_not_creeper(&mut vertices, (row + 1, column + 1), &creepers_map);
             }
         }
         vertices
+    }
+
+    pub fn get_weighted_edge(&self, current_vertex: VertexId, neighbor: VertexId) -> f32 {
+        // TODO: add distance to target.
+        let target = &self.target;
+        let (row, column) = neighbor;
+        ((target.row - row).pow(2) as f32 + (target.column - column).pow(2) as f32).sqrt()
     }
 }
 

@@ -79,7 +79,11 @@ impl Dijkstra {
 
         while let Some(vertex_info) = queue.pop() {
             let current_vertex = vertex_info.0;
-            for neighbor in game.get_adjacent_vertices(current_vertex) {}
+            for neighbor in game.get_adjacent_vertices(current_vertex) {
+                // Get the new distance, account for the weighted edge.
+                let distance = distance_table.get(&neighbor).unwrap().distance
+                    + game.get_weighted_edge(current_vertex, neighbor);
+            }
         }
 
         distance_table
