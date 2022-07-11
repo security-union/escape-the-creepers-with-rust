@@ -59,7 +59,7 @@ fn cell(p: &CellProps) -> Html {
     let is_ferris = game_state
         .moves
         .last()
-        .map(|g| g.steve.location.row == *row && g.steve.location.column == *column)
+        .map(|g| g.ferris.location.row == *row && g.ferris.location.column == *column)
         .unwrap_or(false);
 
     let is_home = game_state.target.row == *row && game_state.target.column == *column;
