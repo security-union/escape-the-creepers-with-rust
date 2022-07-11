@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::Hash};
 
-use priority_queue::{DoublePriorityQueue, PriorityQueue};
+use priority_queue::DoublePriorityQueue;
 
 use crate::model::{Game, Location, VertexId};
 
@@ -99,7 +99,7 @@ impl Dijkstra {
                     .map(|distance| distance + game.get_weighted_edge(current_vertex, neighbor))
                     .unwrap_or(game.get_weighted_edge(current_vertex, neighbor));
 
-                // If we find a new shortest path to the neighbour update
+                // If we find a new shortest path to the neighbor update
                 // the distance and the last vertex.
                 let neighbor_vertex = distance_table.get_mut(&neighbor).unwrap();
                 if neighbor_vertex.distance.is_none()

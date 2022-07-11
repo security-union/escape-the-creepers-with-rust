@@ -106,9 +106,11 @@ fn insert_if_not_creeper(
     value: VertexId,
     creepers_map: &HashMap<VertexId, bool>,
     target: &Location,
+    ferris_location: &Location,
 ) {
     let (row, column) = value;
-    if !creepers_map.contains_key(&value) || Location::from(row, column) == *target {
+    let location = Location::from(row, column);
+    if !creepers_map.contains_key(&value) || location == *target || location == *ferris_location {
         vector.push(value);
     }
 }
@@ -119,6 +121,11 @@ impl Game {
         let mut vertices: Vec<VertexId> = vec![];
         let mut creepers_map: HashMap<VertexId, bool> = HashMap::new();
         let target = &self.target;
+        let ferris_location = self
+            .moves
+            .last()
+            .map(|state| state.ferris.location.clone())
+            .unwrap_or(Location { row: 0, column: 0 });
         if let Some(game_state) = self.moves.last() {
             for creeper in &game_state.creepers {
                 // do not insert just the creeper current location, add +1 -1 buffer around it.
@@ -138,37 +145,85 @@ impl Game {
         if column > 0 {
             // up
             if row > 0 {
-                insert_if_not_creeper(&mut vertices, (row - 1, column - 1), &creepers_map, &target);
+                insert_if_not_creeper(
+                    &mut vertices,
+                    (row - 1, column - 1),
+                    &creepers_map,
+                    &target,
+                    &ferris_location,
+                );
             }
             // left
-            insert_if_not_creeper(&mut vertices, (row, column - 1), &creepers_map, &target);
+            insert_if_not_creeper(
+                &mut vertices,
+                (row, column - 1),
+                &creepers_map,
+                &target,
+                &ferris_location,
+            );
             // bottom left
             if row < self.rows - 1 {
-                insert_if_not_creeper(&mut vertices, (row + 1, column - 1), &creepers_map, &target);
+                insert_if_not_creeper(
+                    &mut vertices,
+                    (row + 1, column - 1),
+                    &creepers_map,
+                    &target,
+                    &ferris_location,
+                );
             }
         }
         // center
         {
             if row > 0 {
-                insert_if_not_creeper(&mut vertices, (row - 1, column), &creepers_map, &target);
+                insert_if_not_creeper(
+                    &mut vertices,
+                    (row - 1, column),
+                    &creepers_map,
+                    &target,
+                    &ferris_location,
+                );
             }
             // center bottom
             if row < self.rows - 1 {
-                insert_if_not_creeper(&mut vertices, (row + 1, column), &creepers_map, &target);
+                insert_if_not_creeper(
+                    &mut vertices,
+                    (row + 1, column),
+                    &creepers_map,
+                    &target,
+                    &ferris_location,
+                );
             }
         }
         // right
         if column < self.columns - 1 {
             // up
             if row > 0 {
-                insert_if_not_creeper(&mut vertices, (row - 1, column + 1), &creepers_map, &target);
+                insert_if_not_creeper(
+                    &mut vertices,
+                    (row - 1, column + 1),
+                    &creepers_map,
+                    &target,
+                    &ferris_location,
+                );
             }
             // left
-            insert_if_not_creeper(&mut vertices, (row, column + 1), &creepers_map, &target);
+            insert_if_not_creeper(
+                &mut vertices,
+                (row, column + 1),
+                &creepers_map,
+                &target,
+                &ferris_location,
+            );
 
             // bottom left
             if row < self.rows - 1 {
-                insert_if_not_creeper(&mut vertices, (row + 1, column + 1), &creepers_map, &target);
+                insert_if_not_creeper(
+                    &mut vertices,
+                    (row + 1, column + 1),
+                    &creepers_map,
+                    &target,
+                    &ferris_location,
+                );
             }
         }
         vertices
