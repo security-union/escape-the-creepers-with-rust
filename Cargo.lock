@@ -353,6 +353,8 @@ dependencies = [
  "gloo-timers",
  "priority-queue",
  "rand",
+ "wasm-bindgen",
+ "web-sys",
  "yew",
 ]
 

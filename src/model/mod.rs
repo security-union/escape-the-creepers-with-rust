@@ -12,6 +12,13 @@ pub struct Location {
     pub column: i32,
 }
 
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 impl Location {
     pub fn id(&self) -> VertexId {
         (self.row, self.column)
@@ -20,11 +27,37 @@ impl Location {
     pub fn from(row: i32, column: i32) -> Location {
         Location { row, column }
     }
-}
 
+    pub fn move_direction(&self, direction: Direction, rows: i32, columns: i32) -> Location {
+        match direction {
+            Direction::Up => Some(Location {
+                row: self.row,
+                column: self.column - 1,
+            })
+            .filter(|_s| self.column > 0),
+            Direction::Left => Some(Location {
+                row: self.row - 1,
+                column: self.column,
+            })
+            .filter(|_s| self.row > 0),
+            Direction::Right => Some(Location {
+                row: self.row + 1,
+                column: self.column,
+            })
+            .filter(|_s| self.row < rows - 1),
+            Direction::Down => Some(Location {
+                row: self.row,
+                column: self.column + 1,
+            })
+            .filter(|_s| self.column < columns - 1),
+        }
+        .unwrap_or(self.clone())
+    }
+}
 pub enum GameEvents {
     StartGameWithCreepers(i16, i32, i32),
     Tick(i16), // Produced every time that we have to refresh.
+    MoveFerris(Direction),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -96,7 +129,6 @@ impl Reducible for Game {
                 game.into()
             }
             GameEvents::Tick(tick) => {
-                log!("{} tick", tick);
                 // On each tick, creepers have a chance to get closer to ferris,
                 // Ferris has a chance to escape!!
                 let game = self.clone();
@@ -123,6 +155,7 @@ impl Reducible for Game {
                         }
                     }
                 }
+
                 new_moves.push(last_move.clone());
                 let game = Game {
                     rows: game.rows,
@@ -133,7 +166,6 @@ impl Reducible for Game {
                 let mut mutable_game = game.clone();
                 // move ferris
                 let last_move = mutable_game.moves.last_mut().unwrap();
-
                 let path = Dijkstra::run(&game, &ferris_location, &game.target, &Mode::Ferris);
                 if let Some(first) = path.first() {
                     last_move.ferris.location = first.clone();
@@ -141,6 +173,30 @@ impl Reducible for Game {
                 last_move.ferris.path = path;
 
                 mutable_game.into()
+            }
+            GameEvents::MoveFerris(direction) => {
+                let game = self.clone();
+                let mut new_moves = self.moves.clone();
+                let mut new_last_move = new_moves.last().unwrap().clone();
+                let current_ferris_position = self.moves.last().unwrap().ferris.location.clone();
+                new_last_move.ferris.location =
+                    current_ferris_position.move_direction(direction, self.rows, self.columns);
+                new_last_move.ferris.path = Dijkstra::run(
+                    &game,
+                    &new_last_move.ferris.location,
+                    &game.target,
+                    &Mode::Ferris,
+                );
+
+                new_moves.push(new_last_move);
+
+                Game {
+                    target: self.target.clone(),
+                    rows: self.rows,
+                    columns: self.columns,
+                    moves: new_moves,
+                }
+                .into()
             }
         }
     }
