@@ -1,7 +1,10 @@
 # Escape The Creepers
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/1176339/177201719-cd387dae-fdd0-4237-90ec-f140fcfcb49c.png" width="400"/>
+  <img src="thumbnail/disegno2.png" width="400"/>
 </p>
+
+![example workflow](https://github.com/security-union/escape-the-creepers-with-rust/actions/workflows/quicstart.yml/badge.svg)
+
 
 ## YouTube video
 https://www.youtube.com/watch?v=oCiGjrpGk4A
