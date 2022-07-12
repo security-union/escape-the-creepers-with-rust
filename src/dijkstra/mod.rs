@@ -59,7 +59,7 @@ impl Dijkstra {
                 break;
             }
             let (row, column) = unwrapped_vertex;
-            stack.push(Location { row, column });
+            stack.push(Location { x: row, y: column });
             previous_vertex = distance_table.get(&unwrapped_vertex).unwrap().last_vertex;
         }
         while let Some(location) = stack.pop() {
@@ -80,7 +80,7 @@ impl Dijkstra {
         let mut queue: DoublePriorityQueue<VertexId, i32> = DoublePriorityQueue::new();
         for row in 0..game.rows {
             for column in 0..game.columns {
-                distance_table.insert(Location { row, column }.id(), DistanceInfo::default());
+                distance_table.insert(Location { x: row, y: column }.id(), DistanceInfo::default());
             }
         }
         let mut origin_distance_info = distance_table.get_mut(&origin.id()).unwrap();
@@ -149,21 +149,21 @@ mod tests {
             moves: vec![GameState {
                 creepers: vec![],
                 ferris: crate::model::Ferris {
-                    location: Location { row: 0, column: 0 },
+                    location: Location { x: 0, y: 0 },
                     path: vec![],
                 },
             }],
             rows: 4,
             columns: 4,
-            target: Location { row: 0, column: 3 },
+            target: Location { x: 0, y: 3 },
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
         let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
         let expected_shortest_path = vec![
-            Location { row: 0, column: 1 },
-            Location { row: 0, column: 2 },
-            Location { row: 0, column: 3 },
+            Location { x: 0, y: 1 },
+            Location { x: 0, y: 2 },
+            Location { x: 0, y: 3 },
         ];
         assert_eq!(shortest_path, expected_shortest_path);
     }
@@ -174,21 +174,21 @@ mod tests {
             moves: vec![GameState {
                 creepers: vec![],
                 ferris: crate::model::Ferris {
-                    location: Location { row: 0, column: 0 },
+                    location: Location { x: 0, y: 0 },
                     path: vec![],
                 },
             }],
             rows: 4,
             columns: 4,
-            target: Location { row: 3, column: 3 },
+            target: Location { x: 3, y: 3 },
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
         let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
         let expected_shortest_path = vec![
-            Location { row: 1, column: 1 },
-            Location { row: 2, column: 2 },
-            Location { row: 3, column: 3 },
+            Location { x: 1, y: 1 },
+            Location { x: 2, y: 2 },
+            Location { x: 3, y: 3 },
         ];
         assert_eq!(shortest_path, expected_shortest_path);
     }
@@ -199,23 +199,23 @@ mod tests {
             moves: vec![GameState {
                 creepers: vec![],
                 ferris: crate::model::Ferris {
-                    location: Location { row: 2, column: 2 },
+                    location: Location { x: 2, y: 2 },
                     path: vec![],
                 },
             }],
             rows: 8,
             columns: 8,
-            target: Location { row: 7, column: 7 },
+            target: Location { x: 7, y: 7 },
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
         let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
         let expected_shortest_path = vec![
-            Location { row: 3, column: 3 },
-            Location { row: 4, column: 4 },
-            Location { row: 5, column: 5 },
-            Location { row: 6, column: 6 },
-            Location { row: 7, column: 7 },
+            Location { x: 3, y: 3 },
+            Location { x: 4, y: 4 },
+            Location { x: 5, y: 5 },
+            Location { x: 6, y: 6 },
+            Location { x: 7, y: 7 },
         ];
         assert_eq!(shortest_path, expected_shortest_path);
     }
@@ -225,29 +225,29 @@ mod tests {
         let game = Game {
             moves: vec![GameState {
                 creepers: vec![Creeper {
-                    location: Location { row: 4, column: 4 },
+                    location: Location { x: 4, y: 4 },
                 }],
                 ferris: crate::model::Ferris {
-                    location: Location { row: 2, column: 2 },
+                    location: Location { x: 2, y: 2 },
                     path: vec![],
                 },
             }],
             rows: 8,
             columns: 8,
-            target: Location { row: 7, column: 7 },
+            target: Location { x: 7, y: 7 },
         };
         let ferris_location = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
         let shortest_path = Dijkstra::run(&game, ferris_location, target, &Mode::Ferris);
         let expected_shortest_path = vec![
-            Location { row: 3, column: 2 },
-            Location { row: 4, column: 2 },
-            Location { row: 5, column: 2 },
-            Location { row: 6, column: 3 },
-            Location { row: 7, column: 4 },
-            Location { row: 7, column: 5 },
-            Location { row: 7, column: 6 },
-            Location { row: 7, column: 7 },
+            Location { x: 3, y: 2 },
+            Location { x: 4, y: 2 },
+            Location { x: 5, y: 2 },
+            Location { x: 6, y: 3 },
+            Location { x: 7, y: 4 },
+            Location { x: 7, y: 5 },
+            Location { x: 7, y: 6 },
+            Location { x: 7, y: 7 },
         ];
 
         assert_eq!(shortest_path, expected_shortest_path);
@@ -266,10 +266,7 @@ mod tests {
         );
         assert_eq!(
             creeper_path,
-            vec![
-                Location { row: 3, column: 3 },
-                Location { row: 2, column: 2 }
-            ]
+            vec![Location { x: 3, y: 3 }, Location { x: 2, y: 2 }]
         );
     }
 
@@ -278,24 +275,21 @@ mod tests {
         let game = Game {
             moves: vec![GameState {
                 creepers: vec![Creeper {
-                    location: Location { row: 0, column: 9 },
+                    location: Location { x: 0, y: 9 },
                 }],
                 ferris: crate::model::Ferris {
-                    location: Location { row: 4, column: 3 },
+                    location: Location { x: 4, y: 3 },
                     path: vec![],
                 },
             }],
             rows: 24,
             columns: 12,
-            target: Location { row: 5, column: 5 },
+            target: Location { x: 5, y: 5 },
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
         let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Creeper);
-        let expected_shortest_path = vec![
-            Location { row: 5, column: 4 },
-            Location { row: 5, column: 5 },
-        ];
+        let expected_shortest_path = vec![Location { x: 5, y: 4 }, Location { x: 5, y: 5 }];
         assert_eq!(shortest_path, expected_shortest_path);
     }
 }

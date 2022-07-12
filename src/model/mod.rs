@@ -1,5 +1,4 @@
 use crate::dijkstra::{Dijkstra, Mode};
-use gloo_console::log;
 use rand::{thread_rng, Rng};
 use std::{collections::HashMap, rc::Rc};
 use yew::Reducible;
@@ -8,8 +7,8 @@ pub type VertexId = (i32, i32);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Location {
-    pub row: i32,
-    pub column: i32,
+    pub x: i32,
+    pub y: i32,
 }
 
 pub enum Direction {
@@ -21,35 +20,35 @@ pub enum Direction {
 
 impl Location {
     pub fn id(&self) -> VertexId {
-        (self.row, self.column)
+        (self.x, self.y)
     }
 
-    pub fn from(row: i32, column: i32) -> Location {
-        Location { row, column }
+    pub fn from(x: i32, y: i32) -> Location {
+        Location { x, y }
     }
 
-    pub fn move_direction(&self, direction: Direction, rows: i32, columns: i32) -> Location {
+    pub fn move_direction(&self, direction: Direction, width: i32, height: i32) -> Location {
         match direction {
             Direction::Up => Some(Location {
-                row: self.row,
-                column: self.column - 1,
+                x: self.x,
+                y: self.y - 1,
             })
-            .filter(|_s| self.column > 0),
+            .filter(|_s| self.y > 0),
             Direction::Left => Some(Location {
-                row: self.row - 1,
-                column: self.column,
+                x: self.x - 1,
+                y: self.y,
             })
-            .filter(|_s| self.row > 0),
+            .filter(|_s| self.x > 0),
             Direction::Right => Some(Location {
-                row: self.row + 1,
-                column: self.column,
+                x: self.x + 1,
+                y: self.y,
             })
-            .filter(|_s| self.row < rows - 1),
+            .filter(|_s| self.x < width - 1),
             Direction::Down => Some(Location {
-                row: self.row,
-                column: self.column + 1,
+                x: self.x,
+                y: self.y + 1,
             })
-            .filter(|_s| self.column < columns - 1),
+            .filter(|_s| self.y < height - 1),
         }
         .unwrap_or(self.clone())
     }
@@ -58,6 +57,14 @@ pub enum GameEvents {
     StartGameWithCreepers(i16, i32, i32),
     Tick(i16), // Produced every time that we have to refresh.
     MoveFerris(Direction),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Status {
+    Idle,
+    Won,
+    Lost,
+    Playing,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -83,6 +90,7 @@ pub struct Game {
     pub rows: i32,
     pub columns: i32,
     pub target: Location,
+    pub status: Status,
 }
 
 impl Reducible for Game {
@@ -100,7 +108,7 @@ impl Reducible for Game {
                         let row = randy.gen_range(0..rows);
                         let column = randy.gen_range(0..columns);
                         Creeper {
-                            location: Location { row, column },
+                            location: Location { x: row, y: column },
                         }
                     })
                     .collect();
@@ -108,40 +116,40 @@ impl Reducible for Game {
                 let row = randy.gen_range(0..rows);
                 let column = randy.gen_range(0..columns);
                 let ferris = Ferris {
-                    location: Location { row, column },
+                    location: Location { x: row, y: column },
                     path: vec![],
                 };
                 let row = randy.gen_range(0..rows);
                 let column = randy.gen_range(0..columns);
-                let target = Location { row, column };
+                let target = Location { x: row, y: column };
                 let moves = vec![GameState { creepers, ferris }];
                 let mut game = Game {
                     rows: rows,
                     columns: columns,
                     moves,
                     target,
+                    status: Status::Playing,
                 };
                 let origin = &game.moves.last().unwrap().ferris.location;
                 let target = &game.target;
                 let result = Dijkstra::run(&game, origin, &target, &Mode::Ferris);
                 let mut ferris = &mut game.moves.last_mut().unwrap().ferris;
                 ferris.path = result;
+                game.validate_status();
                 game.into()
             }
             GameEvents::Tick(tick) => {
+                if self.status != Status::Playing && self.status != Status::Idle {
+                    return self.clone().into();
+                }
                 // On each tick, creepers have a chance to get closer to ferris,
                 // Ferris has a chance to escape!!
                 let game = self.clone();
-                // If ferris made it to the target, it is the end of the game.
+
                 let mut new_moves = game.moves.clone();
                 let mut last_move = game.moves.last().unwrap().clone();
                 let ferris_location = &last_move.ferris.location;
-                if self.target == *ferris_location {
-                    log!("end of the game");
-                }
-
                 // move all creepers one block closer to ferris.
-
                 if tick % 2 == 0 {
                     for mut creeper in last_move.creepers.iter_mut() {
                         let next_position = Dijkstra::run(
@@ -162,8 +170,10 @@ impl Reducible for Game {
                     columns: game.columns,
                     moves: new_moves,
                     target: game.target.clone(),
+                    status: game.status.clone(),
                 };
                 let mut mutable_game = game.clone();
+
                 // move ferris
                 let last_move = mutable_game.moves.last_mut().unwrap();
                 let path = Dijkstra::run(&game, &ferris_location, &game.target, &Mode::Ferris);
@@ -172,10 +182,16 @@ impl Reducible for Game {
                 }
                 last_move.ferris.path = path;
 
+                mutable_game.validate_status();
                 mutable_game.into()
             }
             GameEvents::MoveFerris(direction) => {
+                if self.status != Status::Playing && self.status != Status::Idle {
+                    return self.clone().into();
+                }
                 let game = self.clone();
+                let mut status = game.status.clone();
+
                 let mut new_moves = self.moves.clone();
                 let mut new_last_move = new_moves.last().unwrap().clone();
                 let current_ferris_position = self.moves.last().unwrap().ferris.location.clone();
@@ -187,16 +203,20 @@ impl Reducible for Game {
                     &game.target,
                     &Mode::Ferris,
                 );
-
+                if self.target == new_last_move.ferris.location {
+                    status = Status::Won;
+                }
                 new_moves.push(new_last_move);
 
-                Game {
+                let mut game = Game {
                     target: self.target.clone(),
                     rows: self.rows,
                     columns: self.columns,
                     moves: new_moves,
-                }
-                .into()
+                    status,
+                };
+                game.validate_status();
+                game.into()
             }
         }
     }
@@ -230,21 +250,21 @@ impl Game {
             .moves
             .last()
             .map(|state| state.ferris.location.clone())
-            .unwrap_or(Location { row: 0, column: 0 });
+            .unwrap_or(Location { x: 0, y: 0 });
         if Mode::Creeper != *mode {
             if let Some(game_state) = self.moves.last() {
                 for creeper in &game_state.creepers {
                     // do not insert just the creeper current location, add +1 -1 buffer around it.
-                    let (row, column) = creeper.location.id();
-                    creepers_map.insert((row - 1, column - 1), true);
-                    creepers_map.insert((row, column - 1), true);
-                    creepers_map.insert((row + 1, column - 1), true);
-                    creepers_map.insert((row - 1, column), true);
-                    creepers_map.insert((row, column), true);
-                    creepers_map.insert((row + 1, column), true);
-                    creepers_map.insert((row - 1, column + 1), true);
-                    creepers_map.insert((row, column + 1), true);
-                    creepers_map.insert((row + 1, column + 1), true);
+                    let (x, y) = creeper.location.id();
+                    creepers_map.insert((x - 1, y - 1), true);
+                    creepers_map.insert((x, y - 1), true);
+                    creepers_map.insert((x + 1, y - 1), true);
+                    creepers_map.insert((x - 1, y), true);
+                    creepers_map.insert((x, y), true);
+                    creepers_map.insert((x + 1, y), true);
+                    creepers_map.insert((x - 1, y + 1), true);
+                    creepers_map.insert((x, y + 1), true);
+                    creepers_map.insert((x + 1, y + 1), true);
                 }
             }
         }
@@ -343,14 +363,29 @@ impl Game {
         target: &Location,
     ) -> i32 {
         let (row, column) = neighbor;
-        let distance = (((target.row - row).pow(2) as f32 + (target.column - column).pow(2) as f32)
-            .sqrt()
+        let distance = (((target.x - row).pow(2) as f32 + (target.y - column).pow(2) as f32).sqrt()
             * 1000f32) as i32;
         println!(
             "distance from {:?} to {:?} = {}",
             current_vertex, neighbor, distance
         );
         distance
+    }
+
+    pub fn validate_status(&mut self) {
+        // If creeper hit ferris, user lost.
+        if let Some(state) = self.moves.last() {
+            if self.target == state.ferris.location {
+                self.status = Status::Won;
+                return;
+            }
+            let creepers = &state.creepers;
+            for creeper in creepers {
+                if creeper.location == state.ferris.location {
+                    self.status = Status::Lost;
+                }
+            }
+        }
     }
 }
 
@@ -369,7 +404,7 @@ mod tests {
             moves: vec![],
             rows: 10,
             columns: 10,
-            target: Location { row: 0, column: 0 },
+            target: Location { x: 0, y: 0 },
         };
         let adjacent_vertices = game.get_adjacent_vertices((5, 5), &game.target, &Mode::Ferris);
         let expected_vertices = vec![
@@ -391,7 +426,7 @@ mod tests {
             moves: vec![],
             rows: 10,
             columns: 10,
-            target: Location { row: 0, column: 0 },
+            target: Location { x: 0, y: 0 },
         };
         let adjacent_vertices = game.get_adjacent_vertices((0, 0), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(1, 0), (0, 1), (1, 1)];
@@ -404,7 +439,7 @@ mod tests {
             moves: vec![],
             rows: 10,
             columns: 10,
-            target: Location { row: 0, column: 0 },
+            target: Location { x: 0, y: 0 },
         };
         let adjacent_vertices = game.get_adjacent_vertices((9, 9), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(8, 8), (9, 8), (8, 9)];
@@ -416,16 +451,16 @@ mod tests {
         let game = Game {
             moves: vec![GameState {
                 creepers: vec![Creeper {
-                    location: Location { row: 5, column: 4 },
+                    location: Location { x: 5, y: 4 },
                 }],
                 ferris: crate::model::Ferris {
-                    location: Location { row: 1, column: 1 },
+                    location: Location { x: 1, y: 1 },
                     path: vec![],
                 },
             }],
             rows: 10,
             columns: 10,
-            target: Location { row: 0, column: 0 },
+            target: Location { x: 0, y: 0 },
         };
         let adjacent_vertices = game.get_adjacent_vertices((5, 5), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(4, 6), (5, 6), (6, 6)];

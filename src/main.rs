@@ -1,6 +1,6 @@
 use gloo_console::log;
 use gloo_timers::callback::Interval;
-use survival::model::{Direction, Location};
+use survival::model::{Direction, Location, Status};
 use survival::model::{Game, GameEvents};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -23,7 +23,8 @@ pub fn GameContextProviderImpl(props: &GameContextProviderProps) -> Html {
         moves: vec![],
         rows: 0,
         columns: 0,
-        target: Location { row: 0, column: 0 },
+        target: Location { x: 0, y: 0 },
+        status: Status::Idle,
     });
 
     html! {
@@ -43,8 +44,8 @@ struct CellProps {
 fn cell(p: &CellProps) -> Html {
     let CellProps { row, column } = p;
     let current_location = Location {
-        row: *row,
-        column: *column,
+        x: *row,
+        y: *column,
     };
     let game_state = use_context::<UseReducerHandle<Game>>().unwrap();
     // If creeper print it.
@@ -56,9 +57,7 @@ fn cell(p: &CellProps) -> Html {
                 game_move
                     .creepers
                     .iter()
-                    .find(|creeper| {
-                        creeper.location.row == *row && creeper.location.column == *column
-                    })
+                    .find(|creeper| creeper.location.x == *row && creeper.location.y == *column)
                     .is_some()
             }
         })
@@ -67,10 +66,10 @@ fn cell(p: &CellProps) -> Html {
     let is_ferris = game_state
         .moves
         .last()
-        .map(|g| g.ferris.location.row == *row && g.ferris.location.column == *column)
+        .map(|g| g.ferris.location.x == *row && g.ferris.location.y == *column)
         .unwrap_or(false);
 
-    let is_home = game_state.target.row == *row && game_state.target.column == *column;
+    let is_home = game_state.target.x == *row && game_state.target.y == *column;
 
     let is_path = game_state
         .moves
@@ -110,7 +109,8 @@ fn cell(p: &CellProps) -> Html {
 
     let is_path_image = if is_path && !is_home && !is_ferris {
         html! {
-            <img width="100%" src="thumbnail/trail.png"/>
+            <div class="blue_patch"/>
+            // <img width="100%" src="thumbnail/trail.png"/>
         }
     } else {
         html! {
@@ -130,9 +130,11 @@ fn cell(p: &CellProps) -> Html {
 
 #[function_component(GameRoot)]
 fn game_root_component() -> Html {
-    let game_state = use_context::<UseReducerHandle<Game>>().unwrap();
+    let game_state = Box::new(use_context::<UseReducerHandle<Game>>().unwrap());
+    let game_state_closure = game_state.clone();
     use_effect_with_deps(
         move |_| {
+            let game_state = game_state_closure.clone();
             game_state.dispatch(GameEvents::StartGameWithCreepers(CREEPERS, ROWS, COLUMNS));
             let game_state = game_state.clone();
             let game_state2 = game_state.clone();
@@ -156,7 +158,7 @@ fn game_root_component() -> Html {
                 closure.as_ref().unchecked_ref(),
             );
             closure.forget();
-            let interval = Interval::new(1000, move || {
+            let interval = Interval::new(500, move || {
                 counter += 1;
                 game_state.dispatch(GameEvents::Tick(counter));
             });
@@ -189,9 +191,11 @@ fn game_root_component() -> Html {
             .collect()
     }
 
+    let status = format!("{:?}", (*game_state).status);
     html! {
         <div class="grid">
         {row_generator()}
+        {status}
     </div>
     }
 }
