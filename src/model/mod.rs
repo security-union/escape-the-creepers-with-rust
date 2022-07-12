@@ -393,7 +393,7 @@ impl Game {
 mod tests {
     use crate::{
         dijkstra::Mode,
-        model::{Creeper, GameState},
+        model::{Creeper, GameState, Status},
     };
 
     use super::{Game, Location};
@@ -405,6 +405,7 @@ mod tests {
             rows: 10,
             columns: 10,
             target: Location { x: 0, y: 0 },
+            status: Status::Idle
         };
         let adjacent_vertices = game.get_adjacent_vertices((5, 5), &game.target, &Mode::Ferris);
         let expected_vertices = vec![
@@ -427,6 +428,7 @@ mod tests {
             rows: 10,
             columns: 10,
             target: Location { x: 0, y: 0 },
+            status: Status::Idle
         };
         let adjacent_vertices = game.get_adjacent_vertices((0, 0), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(1, 0), (0, 1), (1, 1)];
@@ -440,6 +442,7 @@ mod tests {
             rows: 10,
             columns: 10,
             target: Location { x: 0, y: 0 },
+            status: Status::Idle
         };
         let adjacent_vertices = game.get_adjacent_vertices((9, 9), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(8, 8), (9, 8), (8, 9)];
@@ -461,6 +464,7 @@ mod tests {
             rows: 10,
             columns: 10,
             target: Location { x: 0, y: 0 },
+            status: Status::Idle
         };
         let adjacent_vertices = game.get_adjacent_vertices((5, 5), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(4, 6), (5, 6), (6, 6)];
