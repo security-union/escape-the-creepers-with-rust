@@ -619,8 +619,8 @@ function getImports() {
         const ret = makeMutClosure(arg0, arg1, 110, __wbg_adapter_29);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper3676 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 301, __wbg_adapter_32);
+    imports.wbg.__wbindgen_closure_wrapper3672 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 298, __wbg_adapter_32);
         return addHeapObject(ret);
     };
 
@@ -656,7 +656,7 @@ function initSync(bytes) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('survival-492a643e63aaa89d_bg.wasm', import.meta.url);
+        input = new URL('survival-9ddb72b5fe007748_bg.wasm', import.meta.url);
     }
     const imports = getImports();
 
