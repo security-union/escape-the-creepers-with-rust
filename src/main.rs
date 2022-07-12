@@ -1,11 +1,12 @@
 use gloo_console::log;
+use gloo_timers::callback::Interval;
 use survival::model::Location;
 use survival::model::{Game, GameEvents};
 use yew::{prelude::*, virtual_dom::VNode};
 
 const ROWS: i32 = 24;
 const COLUMNS: i32 = 12;
-const CREEPERS: i16 = 2;
+const CREEPERS: i16 = 10;
 
 #[derive(Properties, Debug, PartialEq)]
 pub struct GameContextProviderProps {
@@ -104,7 +105,7 @@ fn cell(p: &CellProps) -> Html {
         }
     };
 
-    let is_path_image = if is_path && !is_home {
+    let is_path_image = if is_path && !is_home && !is_ferris {
         html! {
             <img width="100%" src="thumbnail/trail.png"/>
         }
@@ -128,16 +129,20 @@ fn cell(p: &CellProps) -> Html {
 #[function_component(GameRoot)]
 fn game_root_component() -> Html {
     let game_state = use_context::<UseReducerHandle<Game>>().unwrap();
+    let counter = use_state(|| 0);
 
     use_effect_with_deps(
         move |_| {
             log!("rebuilding component");
             game_state.dispatch(GameEvents::StartGameWithCreepers(CREEPERS, ROWS, COLUMNS));
             let game_state = game_state.clone();
-
+            let mut counter = 0;
             // i intervals get out of scope they get dropped and destroyed
-            // let interval = Interval::new(100, move || game_state.dispatch(GameEvents::Tick));
-            move || drop(game_state)
+            let interval = Interval::new(1000, move || {
+                counter += 1;
+                game_state.dispatch(GameEvents::Tick(counter));
+            });
+            move || drop(interval)
         },
         (), // Only create the interval once per your component existence
     );

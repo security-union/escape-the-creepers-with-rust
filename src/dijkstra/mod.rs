@@ -34,21 +34,27 @@ pub struct VertexInfo {
     pub distance: i32,
 }
 
+#[derive(PartialEq)]
+pub enum Mode {
+    Creeper,
+    Ferris,
+}
+
 pub struct Dijkstra {}
 
 impl Dijkstra {
     /**
-     * Computes Dijkstra path from steve's current position to the target.
+     * Computes Dijkstra path using mode
      */
-    pub fn run(game: &Game) -> Vec<Location> {
+    pub fn run(game: &Game, origin: &Location, target: &Location, mode: &Mode) -> Vec<Location> {
         let mut path = vec![];
-        let distance_table = Dijkstra::build_distance_table(game);
+        let distance_table = Dijkstra::build_distance_table(game, origin, target, mode);
         let mut stack = vec![];
-        stack.push(game.target.clone());
-        let ferris_location = &game.moves.last().unwrap().ferris.location;
-        let mut previous_vertex = distance_table.get(&game.target.id()).unwrap().last_vertex;
+        stack.push(target.clone());
+
+        let mut previous_vertex = distance_table.get(&target.id()).unwrap().last_vertex;
         while let Some(unwrapped_vertex) = previous_vertex {
-            if unwrapped_vertex == ferris_location.id() {
+            if unwrapped_vertex == origin.id() {
                 println!("we are done");
                 break;
             }
@@ -62,12 +68,12 @@ impl Dijkstra {
         path
     }
 
-    fn build_distance_table(game: &Game) -> HashMap<VertexId, DistanceInfo> {
-        // Create adjacency table
-        // start location = ferris location.
-        let last_state = game.moves.last().unwrap();
-        let ferris_location = &last_state.ferris.location;
-
+    fn build_distance_table(
+        game: &Game,
+        origin: &Location,
+        target: &Location,
+        mode: &Mode,
+    ) -> HashMap<VertexId, DistanceInfo> {
         // generate all nodes.
         let mut distance_table: HashMap<VertexId, DistanceInfo> = HashMap::new();
         let mut vertex_info_map: HashMap<VertexId, VertexInfo> = HashMap::new();
@@ -77,27 +83,29 @@ impl Dijkstra {
                 distance_table.insert(Location { row, column }.id(), DistanceInfo::default());
             }
         }
-        let mut ferris_distance_info = distance_table.get_mut(&ferris_location.id()).unwrap();
-        ferris_distance_info.distance = Some(0);
-        ferris_distance_info.last_vertex = Some(ferris_location.id());
+        let mut origin_distance_info = distance_table.get_mut(&origin.id()).unwrap();
+        origin_distance_info.distance = Some(0);
+        origin_distance_info.last_vertex = Some(origin.id());
 
         let source_vertex_info = VertexInfo {
-            vertex: ferris_location.id(),
+            vertex: origin.id(),
             distance: 0,
         };
-        vertex_info_map.insert(ferris_location.id(), source_vertex_info.clone());
+        vertex_info_map.insert(origin.id(), source_vertex_info.clone());
         queue.push(source_vertex_info.vertex, source_vertex_info.distance);
 
         while let Some(vertex_info) = queue.pop_min() {
             let current_vertex = vertex_info.0;
-            for neighbor in game.get_adjacent_vertices(current_vertex) {
+            for neighbor in game.get_adjacent_vertices(current_vertex, &target, mode) {
                 // Get the new distance, account for the weighted edge.
                 let distance = distance_table
                     .get(&neighbor)
                     .unwrap()
                     .distance
-                    .map(|distance| distance + game.get_weighted_edge(current_vertex, neighbor))
-                    .unwrap_or(game.get_weighted_edge(current_vertex, neighbor));
+                    .map(|distance| {
+                        distance + game.get_weighted_edge(current_vertex, neighbor, target)
+                    })
+                    .unwrap_or(game.get_weighted_edge(current_vertex, neighbor, target));
 
                 // If we find a new shortest path to the neighbor update
                 // the distance and the last vertex.
@@ -128,7 +136,10 @@ impl Dijkstra {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{Creeper, Game, GameState, Location};
+    use crate::{
+        dijkstra::Mode,
+        model::{Creeper, Game, GameState, Location},
+    };
 
     use super::Dijkstra;
 
@@ -146,7 +157,9 @@ mod tests {
             columns: 4,
             target: Location { row: 0, column: 3 },
         };
-        let shortest_path = Dijkstra::run(&game);
+        let origin = &game.moves.last().unwrap().ferris.location;
+        let target = &game.target;
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
         let expected_shortest_path = vec![
             Location { row: 0, column: 1 },
             Location { row: 0, column: 2 },
@@ -169,7 +182,9 @@ mod tests {
             columns: 4,
             target: Location { row: 3, column: 3 },
         };
-        let shortest_path = Dijkstra::run(&game);
+        let origin = &game.moves.last().unwrap().ferris.location;
+        let target = &game.target;
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
         let expected_shortest_path = vec![
             Location { row: 1, column: 1 },
             Location { row: 2, column: 2 },
@@ -192,7 +207,9 @@ mod tests {
             columns: 8,
             target: Location { row: 7, column: 7 },
         };
-        let shortest_path = Dijkstra::run(&game);
+        let origin = &game.moves.last().unwrap().ferris.location;
+        let target = &game.target;
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
         let expected_shortest_path = vec![
             Location { row: 3, column: 3 },
             Location { row: 4, column: 4 },
@@ -219,7 +236,9 @@ mod tests {
             columns: 8,
             target: Location { row: 7, column: 7 },
         };
-        let shortest_path = Dijkstra::run(&game);
+        let ferris_location = &game.moves.last().unwrap().ferris.location;
+        let target = &game.target;
+        let shortest_path = Dijkstra::run(&game, ferris_location, target, &Mode::Ferris);
         let expected_shortest_path = vec![
             Location { row: 3, column: 2 },
             Location { row: 4, column: 2 },
@@ -230,7 +249,28 @@ mod tests {
             Location { row: 7, column: 6 },
             Location { row: 7, column: 7 },
         ];
+
         assert_eq!(shortest_path, expected_shortest_path);
+        let creeper_path = Dijkstra::run(
+            &game,
+            &game
+                .moves
+                .last()
+                .unwrap()
+                .creepers
+                .first()
+                .unwrap()
+                .location,
+            &ferris_location,
+            &Mode::Creeper,
+        );
+        assert_eq!(
+            creeper_path,
+            vec![
+                Location { row: 3, column: 3 },
+                Location { row: 2, column: 2 }
+            ]
+        );
     }
 
     #[test]
@@ -249,7 +289,9 @@ mod tests {
             columns: 12,
             target: Location { row: 5, column: 5 },
         };
-        let shortest_path = Dijkstra::run(&game);
+        let origin = &game.moves.last().unwrap().ferris.location;
+        let target = &game.target;
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Creeper);
         let expected_shortest_path = vec![
             Location { row: 5, column: 4 },
             Location { row: 5, column: 5 },

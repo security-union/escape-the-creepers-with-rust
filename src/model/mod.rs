@@ -1,4 +1,4 @@
-use crate::dijkstra::Dijkstra;
+use crate::dijkstra::{Dijkstra, Mode};
 use gloo_console::log;
 use rand::{thread_rng, Rng};
 use std::{collections::HashMap, rc::Rc};
@@ -24,7 +24,7 @@ impl Location {
 
 pub enum GameEvents {
     StartGameWithCreepers(i16, i32, i32),
-    Tick, // Produced every time that we have to refresh.
+    Tick(i16), // Produced every time that we have to refresh.
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -88,20 +88,65 @@ impl Reducible for Game {
                     moves,
                     target,
                 };
-                let result = Dijkstra::run(&game);
+                let origin = &game.moves.last().unwrap().ferris.location;
+                let target = &game.target;
+                let result = Dijkstra::run(&game, origin, &target, &Mode::Ferris);
                 let mut ferris = &mut game.moves.last_mut().unwrap().ferris;
                 ferris.path = result;
                 game.into()
             }
-            GameEvents::Tick => {
-                log!("tick");
-                self.clone().into()
+            GameEvents::Tick(tick) => {
+                log!("{} tick", tick);
+                // On each tick, creepers have a chance to get closer to ferris,
+                // Ferris has a chance to escape!!
+                let game = self.clone();
+                // If ferris made it to the target, it is the end of the game.
+                let mut new_moves = game.moves.clone();
+                let mut last_move = game.moves.last().unwrap().clone();
+                let ferris_location = &last_move.ferris.location;
+                if self.target == *ferris_location {
+                    log!("end of the game");
+                }
+
+                // move all creepers one block closer to ferris.
+
+                if tick % 2 == 0 {
+                    for mut creeper in last_move.creepers.iter_mut() {
+                        let next_position = Dijkstra::run(
+                            &game,
+                            &creeper.location,
+                            &ferris_location,
+                            &Mode::Creeper,
+                        );
+                        if let Some(first) = next_position.first() {
+                            creeper.location = first.clone();
+                        }
+                    }
+                }
+                new_moves.push(last_move.clone());
+                let game = Game {
+                    rows: game.rows,
+                    columns: game.columns,
+                    moves: new_moves,
+                    target: game.target.clone(),
+                };
+                let mut mutable_game = game.clone();
+                // move ferris
+                let last_move = mutable_game.moves.last_mut().unwrap();
+
+                let path = Dijkstra::run(&game, &ferris_location, &game.target, &Mode::Ferris);
+                if let Some(first) = path.first() {
+                    last_move.ferris.location = first.clone();
+                }
+                last_move.ferris.path = path;
+
+                mutable_game.into()
             }
         }
     }
 }
 
-fn insert_if_not_creeper(
+fn insert_adjacent_vertex(
     vector: &mut Vec<VertexId>,
     value: VertexId,
     creepers_map: &HashMap<VertexId, bool>,
@@ -116,36 +161,42 @@ fn insert_if_not_creeper(
 }
 
 impl Game {
-    pub fn get_adjacent_vertices(&self, vertex_id: VertexId) -> Vec<VertexId> {
+    pub fn get_adjacent_vertices(
+        &self,
+        vertex_id: VertexId,
+        target: &Location,
+        mode: &Mode,
+    ) -> Vec<VertexId> {
         let (row, column) = vertex_id;
         let mut vertices: Vec<VertexId> = vec![];
         let mut creepers_map: HashMap<VertexId, bool> = HashMap::new();
-        let target = &self.target;
         let ferris_location = self
             .moves
             .last()
             .map(|state| state.ferris.location.clone())
             .unwrap_or(Location { row: 0, column: 0 });
-        if let Some(game_state) = self.moves.last() {
-            for creeper in &game_state.creepers {
-                // do not insert just the creeper current location, add +1 -1 buffer around it.
-                let (row, column) = creeper.location.id();
-                creepers_map.insert((row - 1, column - 1), true);
-                creepers_map.insert((row, column - 1), true);
-                creepers_map.insert((row + 1, column - 1), true);
-                creepers_map.insert((row - 1, column), true);
-                creepers_map.insert((row, column), true);
-                creepers_map.insert((row + 1, column), true);
-                creepers_map.insert((row - 1, column + 1), true);
-                creepers_map.insert((row, column + 1), true);
-                creepers_map.insert((row + 1, column + 1), true);
+        if Mode::Creeper != *mode {
+            if let Some(game_state) = self.moves.last() {
+                for creeper in &game_state.creepers {
+                    // do not insert just the creeper current location, add +1 -1 buffer around it.
+                    let (row, column) = creeper.location.id();
+                    creepers_map.insert((row - 1, column - 1), true);
+                    creepers_map.insert((row, column - 1), true);
+                    creepers_map.insert((row + 1, column - 1), true);
+                    creepers_map.insert((row - 1, column), true);
+                    creepers_map.insert((row, column), true);
+                    creepers_map.insert((row + 1, column), true);
+                    creepers_map.insert((row - 1, column + 1), true);
+                    creepers_map.insert((row, column + 1), true);
+                    creepers_map.insert((row + 1, column + 1), true);
+                }
             }
         }
         // left
         if column > 0 {
             // up
             if row > 0 {
-                insert_if_not_creeper(
+                insert_adjacent_vertex(
                     &mut vertices,
                     (row - 1, column - 1),
                     &creepers_map,
@@ -154,7 +205,7 @@ impl Game {
                 );
             }
             // left
-            insert_if_not_creeper(
+            insert_adjacent_vertex(
                 &mut vertices,
                 (row, column - 1),
                 &creepers_map,
@@ -163,7 +214,7 @@ impl Game {
             );
             // bottom left
             if row < self.rows - 1 {
-                insert_if_not_creeper(
+                insert_adjacent_vertex(
                     &mut vertices,
                     (row + 1, column - 1),
                     &creepers_map,
@@ -175,7 +226,7 @@ impl Game {
         // center
         {
             if row > 0 {
-                insert_if_not_creeper(
+                insert_adjacent_vertex(
                     &mut vertices,
                     (row - 1, column),
                     &creepers_map,
@@ -185,7 +236,7 @@ impl Game {
             }
             // center bottom
             if row < self.rows - 1 {
-                insert_if_not_creeper(
+                insert_adjacent_vertex(
                     &mut vertices,
                     (row + 1, column),
                     &creepers_map,
@@ -198,7 +249,7 @@ impl Game {
         if column < self.columns - 1 {
             // up
             if row > 0 {
-                insert_if_not_creeper(
+                insert_adjacent_vertex(
                     &mut vertices,
                     (row - 1, column + 1),
                     &creepers_map,
@@ -207,7 +258,7 @@ impl Game {
                 );
             }
             // left
-            insert_if_not_creeper(
+            insert_adjacent_vertex(
                 &mut vertices,
                 (row, column + 1),
                 &creepers_map,
@@ -217,7 +268,7 @@ impl Game {
 
             // bottom left
             if row < self.rows - 1 {
-                insert_if_not_creeper(
+                insert_adjacent_vertex(
                     &mut vertices,
                     (row + 1, column + 1),
                     &creepers_map,
@@ -229,9 +280,12 @@ impl Game {
         vertices
     }
 
-    pub fn get_weighted_edge(&self, current_vertex: VertexId, neighbor: VertexId) -> i32 {
-        // TODO: add distance to target.
-        let target = &self.target;
+    pub fn get_weighted_edge(
+        &self,
+        current_vertex: VertexId,
+        neighbor: VertexId,
+        target: &Location,
+    ) -> i32 {
         let (row, column) = neighbor;
         let distance = (((target.row - row).pow(2) as f32 + (target.column - column).pow(2) as f32)
             .sqrt()
@@ -246,7 +300,10 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{Creeper, GameState};
+    use crate::{
+        dijkstra::Mode,
+        model::{Creeper, GameState},
+    };
 
     use super::{Game, Location};
 
@@ -258,7 +315,7 @@ mod tests {
             columns: 10,
             target: Location { row: 0, column: 0 },
         };
-        let adjacent_vertices = game.get_adjacent_vertices((5, 5));
+        let adjacent_vertices = game.get_adjacent_vertices((5, 5), &game.target, &Mode::Ferris);
         let expected_vertices = vec![
             (4, 4),
             (5, 4),
@@ -280,7 +337,7 @@ mod tests {
             columns: 10,
             target: Location { row: 0, column: 0 },
         };
-        let adjacent_vertices = game.get_adjacent_vertices((0, 0));
+        let adjacent_vertices = game.get_adjacent_vertices((0, 0), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(1, 0), (0, 1), (1, 1)];
         assert_eq!(adjacent_vertices, expected_vertices);
     }
@@ -293,7 +350,7 @@ mod tests {
             columns: 10,
             target: Location { row: 0, column: 0 },
         };
-        let adjacent_vertices = game.get_adjacent_vertices((9, 9));
+        let adjacent_vertices = game.get_adjacent_vertices((9, 9), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(8, 8), (9, 8), (8, 9)];
         assert_eq!(adjacent_vertices, expected_vertices);
     }
@@ -314,7 +371,7 @@ mod tests {
             columns: 10,
             target: Location { row: 0, column: 0 },
         };
-        let adjacent_vertices = game.get_adjacent_vertices((5, 5));
+        let adjacent_vertices = game.get_adjacent_vertices((5, 5), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(4, 6), (5, 6), (6, 6)];
         assert_eq!(adjacent_vertices, expected_vertices);
     }
