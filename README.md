@@ -8,7 +8,9 @@
 # Live DEMO
 https://security-union.github.io/escape-the-creepers-with-rust/
 
-![Jul-12-2022 13-04-46](https://user-images.githubusercontent.com/1176339/178553075-064248e9-99a3-469c-b322-34a11b057168.gif)
+<p align="center">
+  <img src="[thumbnail/disegno2.pn](https://user-images.githubusercontent.com/1176339/178553075-064248e9-99a3-469c-b322-34a11b057168.gif))g" width="800"/>
+</p>
 
 
 # How to run
