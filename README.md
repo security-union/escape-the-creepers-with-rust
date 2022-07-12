@@ -5,10 +5,6 @@
 
 ![example workflow](https://github.com/security-union/escape-the-creepers-with-rust/actions/workflows/quicstart.yml/badge.svg)
 
-
-## YouTube video
-https://www.youtube.com/watch?v=oCiGjrpGk4A
-
 # How to run
 ```
 trunk serve
