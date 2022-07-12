@@ -55,7 +55,6 @@ impl Dijkstra {
         let mut previous_vertex = distance_table.get(&target.id()).unwrap().last_vertex;
         while let Some(unwrapped_vertex) = previous_vertex {
             if unwrapped_vertex == origin.id() {
-                println!("we are done");
                 break;
             }
             let (row, column) = unwrapped_vertex;
@@ -244,10 +243,11 @@ mod tests {
         let target = &game.target;
         let shortest_path = Dijkstra::run(&game, ferris_location, target, &Mode::Ferris);
         let expected_shortest_path = vec![
-            Location { x: 3, y: 2 },
-            Location { x: 4, y: 2 },
-            Location { x: 5, y: 2 },
-            Location { x: 6, y: 3 },
+            Location { x: 3, y: 1 },
+            Location { x: 4, y: 1 },
+            Location { x: 5, y: 1 },
+            Location { x: 6, y: 2 },
+            Location { x: 7, y: 3 },
             Location { x: 7, y: 4 },
             Location { x: 7, y: 5 },
             Location { x: 7, y: 6 },

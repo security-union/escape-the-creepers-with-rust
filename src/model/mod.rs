@@ -1,7 +1,11 @@
 use crate::dijkstra::{Dijkstra, Mode};
 use gloo_console::log;
 use rand::{thread_rng, Rng};
-use std::{collections::HashMap, rc::Rc};
+use std::{
+    collections::HashMap,
+    fmt::{self},
+    rc::Rc,
+};
 use yew::Reducible;
 
 pub type VertexId = (i32, i32);
@@ -55,10 +59,9 @@ impl Location {
     }
 }
 pub enum GameEvents {
-    StartGameWithCreepers(i16, i32, i32),
+    InitGameWithCreepers(i16, i32, i32),
     Tick(i16), // Produced every time that we have to refresh.
     MoveFerris(Direction),
-    StartGame(Direction),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -67,6 +70,17 @@ pub enum Status {
     Won,
     Lost,
     Playing,
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Status::Idle => write!(f, "Idle"),
+            Status::Won => write!(f, "Won"),
+            Status::Lost => write!(f, "Lost"),
+            Status::Playing => write!(f, "Playing"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -101,36 +115,7 @@ impl Reducible for Game {
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         // process all events.
         match action {
-            GameEvents::StartGame(direction) => {
-                let game = self.clone();
-                let mut status = Status::Playing;
-                let mut new_moves = self.moves.clone();
-                let mut new_last_move = new_moves.last().unwrap().clone();
-                let current_ferris_position = self.moves.last().unwrap().ferris.location.clone();
-                new_last_move.ferris.location =
-                    current_ferris_position.move_direction(direction, self.rows, self.columns);
-                new_last_move.ferris.path = Dijkstra::run(
-                    &game,
-                    &new_last_move.ferris.location,
-                    &game.target,
-                    &Mode::Ferris,
-                );
-                if self.target == new_last_move.ferris.location {
-                    status = Status::Won;
-                }
-                new_moves.push(new_last_move);
-
-                let mut game = Game {
-                    target: self.target.clone(),
-                    rows: self.rows,
-                    columns: self.columns,
-                    moves: new_moves,
-                    status,
-                };
-                game.validate_status();
-                game.into()
-            }
-            GameEvents::StartGameWithCreepers(creepers, rows, columns) => {
+            GameEvents::InitGameWithCreepers(creepers, rows, columns) => {
                 // spawn creepers
                 let mut randy = thread_rng();
                 let creepers = (0..creepers)
@@ -218,11 +203,15 @@ impl Reducible for Game {
                 mutable_game.into()
             }
             GameEvents::MoveFerris(direction) => {
-                if self.status != Status::Playing {
+                log!("status {}", self.status.to_string());
+                if self.status != Status::Playing && self.status != Status::Idle {
                     return self.clone().into();
                 }
                 let game = self.clone();
                 let mut status = game.status.clone();
+                if status == Status::Idle {
+                    status = Status::Playing;
+                }
 
                 let mut new_moves = self.moves.clone();
                 let mut new_last_move = new_moves.last().unwrap().clone();
@@ -382,7 +371,7 @@ impl Game {
 
     pub fn get_weighted_edge(
         &self,
-        current_vertex: VertexId,
+        _current_vertex: VertexId,
         neighbor: VertexId,
         target: &Location,
         mode: &Mode,
@@ -406,11 +395,6 @@ impl Game {
             }
             cost += (10000f32 / shortest_distance_to_creeper) as i32;
         }
-
-        println!(
-            "cost from {:?} to {:?} = {}",
-            current_vertex, neighbor, cost
-        );
         cost
     }
 
@@ -509,7 +493,7 @@ mod tests {
             status: Status::Idle,
         };
         let adjacent_vertices = game.get_adjacent_vertices((5, 5), &game.target, &Mode::Ferris);
-        let expected_vertices = vec![(4, 6), (5, 6), (6, 6)];
+        let expected_vertices = vec![(4, 4), (6, 4), (4, 5), (6, 5), (4, 6), (5, 6), (6, 6)];
         assert_eq!(adjacent_vertices, expected_vertices);
     }
 }

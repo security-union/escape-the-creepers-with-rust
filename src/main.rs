@@ -83,6 +83,10 @@ fn cell(p: &CellProps) -> Html {
             html! {
                 <img width="100%" src="thumbnail/win.png"/>
             }
+        } else if is_creeper {
+            html! {
+                <img width="100%" src="thumbnail/lost.png"/>
+            }
         } else {
             html! {
                 <img width="100%" src="thumbnail/sadferris.png"/>
@@ -94,7 +98,7 @@ fn cell(p: &CellProps) -> Html {
         }
     };
 
-    let creeper_image = if is_creeper {
+    let creeper_image = if is_creeper && !is_ferris {
         html! {
             <img width="100%" src="thumbnail/creeper2.png"/>
         }
@@ -140,7 +144,7 @@ fn game_root_component() -> Html {
     let game_state_2 = game_state.clone();
     use_effect_with_deps(
         move |_| {
-            game_state.dispatch(GameEvents::StartGameWithCreepers(CREEPERS, ROWS, COLUMNS));
+            game_state.dispatch(GameEvents::InitGameWithCreepers(CREEPERS, ROWS, COLUMNS));
             let game_state = game_state.clone();
             let game_state_2 = game_state.clone();
             let mut counter = 0;
@@ -155,11 +159,7 @@ fn game_root_component() -> Html {
                 };
                 if let Some(direction) = direction {
                     event.prevent_default();
-                    if game_state.status == Status::Idle {
-                        game_state.dispatch(GameEvents::StartGame(direction));
-                    } else {
-                        game_state.dispatch(GameEvents::MoveFerris(direction));
-                    }
+                    game_state.dispatch(GameEvents::MoveFerris(direction));
                 }
             }) as Box<dyn FnMut(_)>);
             let _result = window().unwrap().add_event_listener_with_callback(
