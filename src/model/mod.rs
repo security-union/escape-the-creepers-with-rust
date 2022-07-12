@@ -1,6 +1,11 @@
 use crate::dijkstra::{Dijkstra, Mode};
+use gloo_console::log;
 use rand::{thread_rng, Rng};
-use std::{collections::HashMap, rc::Rc};
+use std::{
+    collections::HashMap,
+    fmt::{self},
+    rc::Rc,
+};
 use yew::Reducible;
 
 pub type VertexId = (i32, i32);
@@ -54,7 +59,7 @@ impl Location {
     }
 }
 pub enum GameEvents {
-    StartGameWithCreepers(i16, i32, i32),
+    InitGameWithCreepers(i16, i32, i32),
     Tick(i16), // Produced every time that we have to refresh.
     MoveFerris(Direction),
 }
@@ -65,6 +70,17 @@ pub enum Status {
     Won,
     Lost,
     Playing,
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Status::Idle => write!(f, "Idle"),
+            Status::Won => write!(f, "Won"),
+            Status::Lost => write!(f, "Lost"),
+            Status::Playing => write!(f, "Playing"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -99,7 +115,7 @@ impl Reducible for Game {
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         // process all events.
         match action {
-            GameEvents::StartGameWithCreepers(creepers, rows, columns) => {
+            GameEvents::InitGameWithCreepers(creepers, rows, columns) => {
                 // spawn creepers
                 let mut randy = thread_rng();
                 let creepers = (0..creepers)
@@ -128,7 +144,7 @@ impl Reducible for Game {
                     columns: columns,
                     moves,
                     target,
-                    status: Status::Playing,
+                    status: Status::Idle,
                 };
                 let origin = &game.moves.last().unwrap().ferris.location;
                 let target = &game.target;
@@ -139,14 +155,15 @@ impl Reducible for Game {
                 game.into()
             }
             GameEvents::Tick(tick) => {
-                if self.status != Status::Playing && self.status != Status::Idle {
+                log!("tick {} {}", tick, self.moves.len() as u16);
+                if self.status != Status::Playing {
                     return self.clone().into();
                 }
                 // On each tick, creepers have a chance to get closer to ferris,
                 // Ferris has a chance to escape!!
                 let game = self.clone();
 
-                let mut new_moves = game.moves.clone();
+                let mut moves = game.moves.clone();
                 let mut last_move = game.moves.last().unwrap().clone();
                 let ferris_location = &last_move.ferris.location;
                 // move all creepers one block closer to ferris.
@@ -164,11 +181,11 @@ impl Reducible for Game {
                     }
                 }
 
-                new_moves.push(last_move.clone());
+                moves.push(last_move.clone());
                 let game = Game {
                     rows: game.rows,
                     columns: game.columns,
-                    moves: new_moves,
+                    moves,
                     target: game.target.clone(),
                     status: game.status.clone(),
                 };
@@ -186,11 +203,15 @@ impl Reducible for Game {
                 mutable_game.into()
             }
             GameEvents::MoveFerris(direction) => {
+                log!("status {}", self.status.to_string());
                 if self.status != Status::Playing && self.status != Status::Idle {
                     return self.clone().into();
                 }
                 let game = self.clone();
                 let mut status = game.status.clone();
+                if status == Status::Idle {
+                    status = Status::Playing;
+                }
 
                 let mut new_moves = self.moves.clone();
                 let mut new_last_move = new_moves.last().unwrap().clone();
@@ -256,15 +277,7 @@ impl Game {
                 for creeper in &game_state.creepers {
                     // do not insert just the creeper current location, add +1 -1 buffer around it.
                     let (x, y) = creeper.location.id();
-                    creepers_map.insert((x - 1, y - 1), true);
-                    creepers_map.insert((x, y - 1), true);
-                    creepers_map.insert((x + 1, y - 1), true);
-                    creepers_map.insert((x - 1, y), true);
                     creepers_map.insert((x, y), true);
-                    creepers_map.insert((x + 1, y), true);
-                    creepers_map.insert((x - 1, y + 1), true);
-                    creepers_map.insert((x, y + 1), true);
-                    creepers_map.insert((x + 1, y + 1), true);
                 }
             }
         }
@@ -358,18 +371,31 @@ impl Game {
 
     pub fn get_weighted_edge(
         &self,
-        current_vertex: VertexId,
+        _current_vertex: VertexId,
         neighbor: VertexId,
         target: &Location,
+        mode: &Mode,
     ) -> i32 {
         let (row, column) = neighbor;
-        let distance = (((target.x - row).pow(2) as f32 + (target.y - column).pow(2) as f32).sqrt()
+        let mut cost = (((target.x - row).pow(2) as f32 + (target.y - column).pow(2) as f32).sqrt()
             * 1000f32) as i32;
-        println!(
-            "distance from {:?} to {:?} = {}",
-            current_vertex, neighbor, distance
-        );
-        distance
+        if *mode == Mode::Ferris {
+            let mut shortest_distance_to_creeper = f32::MAX;
+            for creeper in &self.moves.last().unwrap().creepers {
+                let creeper_location = &creeper.location;
+                let distance = ((creeper_location.x - row).pow(2) as f32
+                    + (creeper_location.y - column).pow(2) as f32)
+                    .sqrt();
+                if distance < shortest_distance_to_creeper {
+                    shortest_distance_to_creeper = distance;
+                }
+            }
+            if shortest_distance_to_creeper == 0f32 {
+                shortest_distance_to_creeper = 1f32;
+            }
+            cost += (10000f32 / shortest_distance_to_creeper) as i32;
+        }
+        cost
     }
 
     pub fn validate_status(&mut self) {
@@ -405,7 +431,7 @@ mod tests {
             rows: 10,
             columns: 10,
             target: Location { x: 0, y: 0 },
-            status: Status::Idle
+            status: Status::Idle,
         };
         let adjacent_vertices = game.get_adjacent_vertices((5, 5), &game.target, &Mode::Ferris);
         let expected_vertices = vec![
@@ -428,7 +454,7 @@ mod tests {
             rows: 10,
             columns: 10,
             target: Location { x: 0, y: 0 },
-            status: Status::Idle
+            status: Status::Idle,
         };
         let adjacent_vertices = game.get_adjacent_vertices((0, 0), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(1, 0), (0, 1), (1, 1)];
@@ -442,7 +468,7 @@ mod tests {
             rows: 10,
             columns: 10,
             target: Location { x: 0, y: 0 },
-            status: Status::Idle
+            status: Status::Idle,
         };
         let adjacent_vertices = game.get_adjacent_vertices((9, 9), &game.target, &Mode::Ferris);
         let expected_vertices = vec![(8, 8), (9, 8), (8, 9)];
@@ -464,10 +490,10 @@ mod tests {
             rows: 10,
             columns: 10,
             target: Location { x: 0, y: 0 },
-            status: Status::Idle
+            status: Status::Idle,
         };
         let adjacent_vertices = game.get_adjacent_vertices((5, 5), &game.target, &Mode::Ferris);
-        let expected_vertices = vec![(4, 6), (5, 6), (6, 6)];
+        let expected_vertices = vec![(4, 4), (6, 4), (4, 5), (6, 5), (4, 6), (5, 6), (6, 6)];
         assert_eq!(adjacent_vertices, expected_vertices);
     }
 }

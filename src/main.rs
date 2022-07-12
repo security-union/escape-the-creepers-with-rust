@@ -1,4 +1,5 @@
-use gloo_console::log;
+use std::rc::Rc;
+
 use gloo_timers::callback::Interval;
 use survival::model::{Direction, Location, Status};
 use survival::model::{Game, GameEvents};
@@ -9,7 +10,7 @@ use yew::{prelude::*, virtual_dom::VNode};
 
 const ROWS: i32 = 24;
 const COLUMNS: i32 = 12;
-const CREEPERS: i16 = 5;
+const CREEPERS: i16 = 10;
 
 #[derive(Properties, Debug, PartialEq)]
 pub struct GameContextProviderProps {
@@ -48,7 +49,7 @@ fn cell(p: &CellProps) -> Html {
         y: *column,
     };
     let game_state = use_context::<UseReducerHandle<Game>>().unwrap();
-    // If creeper print it.
+
     let is_creeper = game_state
         .moves
         .last()
@@ -78,8 +79,18 @@ fn cell(p: &CellProps) -> Html {
         .unwrap_or(false);
 
     let ferris_image = if is_ferris {
-        html! {
-            <img width="100%" src="thumbnail/sadferris.png"/>
+        if is_home {
+            html! {
+                <img width="100%" src="thumbnail/win.png"/>
+            }
+        } else if is_creeper {
+            html! {
+                <img width="100%" src="thumbnail/lost.png"/>
+            }
+        } else {
+            html! {
+                <img width="100%" src="thumbnail/sadferris.png"/>
+            }
         }
     } else {
         html! {
@@ -87,7 +98,7 @@ fn cell(p: &CellProps) -> Html {
         }
     };
 
-    let creeper_image = if is_creeper {
+    let creeper_image = if is_creeper && !is_ferris {
         html! {
             <img width="100%" src="thumbnail/creeper2.png"/>
         }
@@ -97,7 +108,7 @@ fn cell(p: &CellProps) -> Html {
         }
     };
 
-    let home_image = if is_home {
+    let home_image = if is_home && !is_ferris && !is_creeper {
         html! {
             <img width="100%" src="thumbnail/home.png"/>
         }
@@ -110,7 +121,6 @@ fn cell(p: &CellProps) -> Html {
     let is_path_image = if is_path && !is_home && !is_ferris {
         html! {
             <div class="blue_patch"/>
-            // <img width="100%" src="thumbnail/trail.png"/>
         }
     } else {
         html! {
@@ -130,17 +140,16 @@ fn cell(p: &CellProps) -> Html {
 
 #[function_component(GameRoot)]
 fn game_root_component() -> Html {
-    let game_state = Box::new(use_context::<UseReducerHandle<Game>>().unwrap());
-    let game_state_closure = game_state.clone();
+    let game_state = Rc::new(use_context::<UseReducerHandle<Game>>().unwrap());
+    let game_state_2 = game_state.clone();
     use_effect_with_deps(
         move |_| {
-            let game_state = game_state_closure.clone();
-            game_state.dispatch(GameEvents::StartGameWithCreepers(CREEPERS, ROWS, COLUMNS));
+            game_state.dispatch(GameEvents::InitGameWithCreepers(CREEPERS, ROWS, COLUMNS));
             let game_state = game_state.clone();
-            let game_state2 = game_state.clone();
+            let game_state_2 = game_state.clone();
             let mut counter = 0;
 
-            let closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+            let keyboard_callback = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
                 let direction = match event.key().as_str() {
                     "ArrowUp" => Some(Direction::Up),
                     "ArrowLeft" => Some(Direction::Left),
@@ -150,54 +159,63 @@ fn game_root_component() -> Html {
                 };
                 if let Some(direction) = direction {
                     event.prevent_default();
-                    game_state2.dispatch(GameEvents::MoveFerris(direction));
+                    game_state.dispatch(GameEvents::MoveFerris(direction));
                 }
             }) as Box<dyn FnMut(_)>);
             let _result = window().unwrap().add_event_listener_with_callback(
                 "keydown".into(),
-                closure.as_ref().unchecked_ref(),
+                keyboard_callback.as_ref().unchecked_ref(),
             );
-            closure.forget();
+            keyboard_callback.forget();
             let interval = Interval::new(500, move || {
                 counter += 1;
-                game_state.dispatch(GameEvents::Tick(counter));
+                game_state_2.dispatch(GameEvents::Tick(counter));
             });
             move || drop(interval)
         },
-        (), // Only create the interval once per your component existence
+        (),
     );
 
-    fn column_generator(column: i32) -> Vec<VNode> {
-        let rows: Vec<i32> = (0..ROWS).collect();
-        rows.iter()
-            .map(|row| {
-                html! {
-                    <Cell row={*row} column={column}/>
-                }
-            })
-            .collect()
-    }
-
-    fn row_generator() -> Vec<VNode> {
-        let rows: Vec<i32> = (0..COLUMNS).collect();
-        rows.iter()
-            .map(|j| {
-                html! {
-                    <>
-                        {column_generator(*j)}
-                    </>
-                }
-            })
-            .collect()
-    }
-
-    let status = format!("{:?}", (*game_state).status);
+    let instructions = match (*game_state_2).status {
+        Status::Idle => "Press any arrow key to start",
+        Status::Won => "Congrats, Ferris is home! please refresh to start another game",
+        Status::Lost => "We lost :( please refresh to start another game.",
+        Status::Playing => "Help Ferris to get home, avoid creepers. (if you do not press the arrows, Ferris will move on it's own)",
+    };
     html! {
+        <>
+        <div class="status">
+            <span class="center">{instructions}</span>
+        </div>
         <div class="grid">
-        {row_generator()}
-        {status}
-    </div>
+            {row_generator()}
+        </div>
+        </>
     }
+}
+
+fn column_generator(column: i32) -> Vec<VNode> {
+    let rows: Vec<i32> = (0..ROWS).collect();
+    rows.iter()
+        .map(|row| {
+            html! {
+                <Cell row={*row} column={column}/>
+            }
+        })
+        .collect()
+}
+
+fn row_generator() -> Vec<VNode> {
+    let rows: Vec<i32> = (0..COLUMNS).collect();
+    rows.iter()
+        .map(|j| {
+            html! {
+                <>
+                    {column_generator(*j)}
+                </>
+            }
+        })
+        .collect()
 }
 
 #[function_component(App)]
