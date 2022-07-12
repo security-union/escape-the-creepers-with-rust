@@ -138,7 +138,7 @@ impl Dijkstra {
 mod tests {
     use crate::{
         dijkstra::Mode,
-        model::{Creeper, Game, GameState, Location},
+        model::{Creeper, Game, GameState, Location, Status},
     };
 
     use super::Dijkstra;
@@ -156,6 +156,7 @@ mod tests {
             rows: 4,
             columns: 4,
             target: Location { x: 0, y: 3 },
+            status: Status::Idle
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
@@ -181,6 +182,7 @@ mod tests {
             rows: 4,
             columns: 4,
             target: Location { x: 3, y: 3 },
+            status: Status::Idle
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
@@ -206,6 +208,7 @@ mod tests {
             rows: 8,
             columns: 8,
             target: Location { x: 7, y: 7 },
+            status: Status::Idle
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
@@ -235,6 +238,7 @@ mod tests {
             rows: 8,
             columns: 8,
             target: Location { x: 7, y: 7 },
+            status: Status::Idle
         };
         let ferris_location = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
@@ -285,6 +289,7 @@ mod tests {
             rows: 24,
             columns: 12,
             target: Location { x: 5, y: 5 },
+            status: Status::Idle
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
