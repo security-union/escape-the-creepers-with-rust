@@ -1,9 +1,10 @@
+![example workflow](https://github.com/security-union/escape-the-creepers-with-rust/actions/workflows/quicstart.yml/badge.svg)
+
 # Escape The Creepers
 <p align="center">
   <img src="thumbnail/disegno2.png" width="800"/>
 </p>
 
-![example workflow](https://github.com/security-union/escape-the-creepers-with-rust/actions/workflows/quicstart.yml/badge.svg)
 
 # How to run
 ```
