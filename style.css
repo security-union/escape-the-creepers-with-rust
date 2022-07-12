@@ -29,7 +29,7 @@ html, body {
     margin: 0;
     background: url("./thumbnail/lawn.jpeg");
     transition: all .5s linear;
-
+    overflow: hidden;
 
 }
 
@@ -44,4 +44,21 @@ img {
     height: 100%;
     background-color: blue;
     opacity: 50%;
+}
+
+.status {
+    font-size: 1.2em;
+    color: white;
+    background-color: black;
+    font-family: 'Helvetica';
+}
+
+.center {
+    margin: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 80%;
+    font-family: 'Helvetica';
+
 }

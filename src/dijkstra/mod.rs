@@ -103,9 +103,9 @@ impl Dijkstra {
                     .unwrap()
                     .distance
                     .map(|distance| {
-                        distance + game.get_weighted_edge(current_vertex, neighbor, target)
+                        distance + game.get_weighted_edge(current_vertex, neighbor, target, mode)
                     })
-                    .unwrap_or(game.get_weighted_edge(current_vertex, neighbor, target));
+                    .unwrap_or(game.get_weighted_edge(current_vertex, neighbor, target, mode));
 
                 // If we find a new shortest path to the neighbor update
                 // the distance and the last vertex.
@@ -156,7 +156,7 @@ mod tests {
             rows: 4,
             columns: 4,
             target: Location { x: 0, y: 3 },
-            status: Status::Idle
+            status: Status::Idle,
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
@@ -182,7 +182,7 @@ mod tests {
             rows: 4,
             columns: 4,
             target: Location { x: 3, y: 3 },
-            status: Status::Idle
+            status: Status::Idle,
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
@@ -208,7 +208,7 @@ mod tests {
             rows: 8,
             columns: 8,
             target: Location { x: 7, y: 7 },
-            status: Status::Idle
+            status: Status::Idle,
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
@@ -238,7 +238,7 @@ mod tests {
             rows: 8,
             columns: 8,
             target: Location { x: 7, y: 7 },
-            status: Status::Idle
+            status: Status::Idle,
         };
         let ferris_location = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
@@ -275,6 +275,34 @@ mod tests {
     }
 
     #[test]
+    fn dijkstra_4_by_4_creeper_on_home() {
+        let game = Game {
+            moves: vec![GameState {
+                creepers: vec![Creeper {
+                    location: Location { x: 3, y: 3 },
+                }],
+                ferris: crate::model::Ferris {
+                    location: Location { x: 0, y: 0 },
+                    path: vec![],
+                },
+            }],
+            rows: 4,
+            columns: 4,
+            target: Location { x: 3, y: 3 },
+            status: Status::Idle,
+        };
+        let origin = &game.moves.last().unwrap().ferris.location;
+        let target = &game.target;
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
+        let expected_shortest_path = vec![
+            Location { x: 1, y: 1 },
+            Location { x: 2, y: 2 },
+            Location { x: 3, y: 3 },
+        ];
+        assert_eq!(shortest_path, expected_shortest_path);
+    }
+
+    #[test]
     fn dijkstra_12_by_24() {
         let game = Game {
             moves: vec![GameState {
@@ -289,7 +317,7 @@ mod tests {
             rows: 24,
             columns: 12,
             target: Location { x: 5, y: 5 },
-            status: Status::Idle
+            status: Status::Idle,
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
