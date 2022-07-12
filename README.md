@@ -9,7 +9,7 @@
 https://security-union.github.io/escape-the-creepers-with-rust/
 
 <p align="center">
-  <img src="[thumbnail/disegno2.pn](https://user-images.githubusercontent.com/1176339/178553075-064248e9-99a3-469c-b322-34a11b057168.gif))g" width="800"/>
+  <img src="[thumbnail/disegno2.pn](https://user-images.githubusercontent.com/1176339/178553075-064248e9-99a3-469c-b322-34a11b057168.gif" width="800"/>
 </p>
 
 
