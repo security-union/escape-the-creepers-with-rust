@@ -58,9 +58,13 @@ impl Location {
         .unwrap_or(self.clone())
     }
 }
+
 pub enum GameEvents {
+    // Initialize game
     InitGameWithCreepers(i16, i32, i32),
-    Tick(i16), // Produced every time that we have to refresh.
+    // Called every few milliseconds to update the game state.
+    Tick(i16),
+    // Called to move ferris using the keyboard, it causes other agents to move too.
     MoveFerris(Direction),
 }
 
@@ -70,6 +74,7 @@ pub enum Status {
     Won,
     Lost,
     Playing,
+    Error(String),
 }
 
 impl fmt::Display for Status {
@@ -79,6 +84,7 @@ impl fmt::Display for Status {
             Status::Won => write!(f, "Won"),
             Status::Lost => write!(f, "Lost"),
             Status::Playing => write!(f, "Playing"),
+            Status::Error(e) => write!(f, "Error: {}", e),
         }
     }
 }
@@ -128,7 +134,7 @@ impl Reducible for Game {
                         }
                     })
                     .collect();
-                // TODO: validate that steve does not spawn next or on top of a creeper.
+                // TODO: validate that Ferris does not spawn next or on top of a creeper.
                 let row = randy.gen_range(0..rows);
                 let column = randy.gen_range(0..columns);
                 let ferris = Ferris {
@@ -149,24 +155,42 @@ impl Reducible for Game {
                 let origin = &game.moves.last().unwrap().ferris.location;
                 let target = &game.target;
                 let result = Dijkstra::run(&game, origin, &target, &Mode::Ferris);
-                let mut ferris = &mut game.moves.last_mut().unwrap().ferris;
-                ferris.path = result;
-                game.validate_status();
-                game.into()
+
+                match result {
+                    Ok(result) => {
+                        // This unwrap will work because we just added a move.
+                        let mut ferris = &mut game.moves.last_mut().unwrap().ferris;
+                        ferris.path = result;
+                        game.validate_status();
+                        game.into()
+                    }
+                    Err(err) => {
+                        game.status = Status::Error(format!("{}", err));
+                        game.into()
+                    }
+                }
             }
             GameEvents::Tick(tick) => {
                 log!("tick {} {}", tick, self.moves.len() as u16);
+                // If not playing, then there's nothing to update.
                 if self.status != Status::Playing {
                     return self.clone().into();
                 }
-                // On each tick, creepers have a chance to get closer to ferris,
+                // Every each tick, creepers have a chance to get closer to ferris,
                 // Ferris has a chance to escape!!
                 let game = self.clone();
-
-                let mut moves = game.moves.clone();
+                let moves = game.moves.clone();
                 let mut last_move = game.moves.last().unwrap().clone();
                 let ferris_location = &last_move.ferris.location;
-                // move all creepers one block closer to ferris.
+                let mut game = Game {
+                    rows: game.rows,
+                    columns: game.columns,
+                    moves,
+                    target: game.target.clone(),
+                    status: game.status.clone(),
+                };
+
+                // move creepers.
                 if tick % 2 == 0 {
                     for mut creeper in last_move.creepers.iter_mut() {
                         let next_position = Dijkstra::run(
@@ -175,35 +199,39 @@ impl Reducible for Game {
                             &ferris_location,
                             &Mode::Creeper,
                         );
-                        if let Some(first) = next_position.first() {
-                            creeper.location = first.clone();
+                        match next_position {
+                            Ok(next_position) => {
+                                if let Some(first) = next_position.first() {
+                                    creeper.location = first.clone();
+                                }
+                            }
+                            Err(error) => {
+                                game.status = Status::Error(error.to_string());
+                            }
                         }
                     }
                 }
-
-                moves.push(last_move.clone());
-                let game = Game {
-                    rows: game.rows,
-                    columns: game.columns,
-                    moves,
-                    target: game.target.clone(),
-                    status: game.status.clone(),
-                };
+                game.moves.push(last_move.clone());
                 let mut mutable_game = game.clone();
 
                 // move ferris
                 let last_move = mutable_game.moves.last_mut().unwrap();
                 let path = Dijkstra::run(&game, &ferris_location, &game.target, &Mode::Ferris);
-                if let Some(first) = path.first() {
-                    last_move.ferris.location = first.clone();
+                match path {
+                    Ok(path) => {
+                        if let Some(first) = path.first() {
+                            last_move.ferris.location = first.clone();
+                        }
+                        last_move.ferris.path = path;
+                    }
+                    Err(err) => {
+                        game.status = Status::Error(err.to_string());
+                    }
                 }
-                last_move.ferris.path = path;
-
                 mutable_game.validate_status();
                 mutable_game.into()
             }
             GameEvents::MoveFerris(direction) => {
-                log!("status {}", self.status.to_string());
                 if self.status != Status::Playing && self.status != Status::Idle {
                     return self.clone().into();
                 }
@@ -212,18 +240,27 @@ impl Reducible for Game {
                 if status == Status::Idle {
                     status = Status::Playing;
                 }
-
                 let mut new_moves = self.moves.clone();
                 let mut new_last_move = new_moves.last().unwrap().clone();
                 let current_ferris_position = self.moves.last().unwrap().ferris.location.clone();
                 new_last_move.ferris.location =
                     current_ferris_position.move_direction(direction, self.rows, self.columns);
-                new_last_move.ferris.path = Dijkstra::run(
+
+                let new_path = Dijkstra::run(
                     &game,
                     &new_last_move.ferris.location,
                     &game.target,
                     &Mode::Ferris,
                 );
+
+                match new_path {
+                    Ok(new_path) => {
+                        new_last_move.ferris.path = new_path;
+                    }
+                    Err(err) => {
+                        status = Status::Error(err.to_string());
+                    }
+                }
                 if self.target == new_last_move.ferris.location {
                     status = Status::Won;
                 }
