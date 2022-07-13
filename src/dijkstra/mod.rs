@@ -1,17 +1,7 @@
-use std::{collections::HashMap, hash::Hash};
-
-use priority_queue::DoublePriorityQueue;
-
 use crate::model::{Game, Location, VertexId};
-
-/**
- *   A   →   2   →   B                  VERTEX     DISTANCE    LAST VERTEX
- *   |       ↑         ➘ 2                 A           0           A
- *   3       5          D                  B           2           A
- *   ↓       |         ➚ 4                 C           3           A
- *   C   →   6   →   E                     D           4           A
- *                                         E           9           A
- */
+use anyhow::{anyhow, Result};
+use priority_queue::DoublePriorityQueue;
+use std::{collections::HashMap, hash::Hash};
 
 #[derive(Debug)]
 pub struct DistanceInfo {
@@ -34,6 +24,11 @@ pub struct VertexInfo {
     pub distance: i32,
 }
 
+/**
+ * Use Creeper when computing Dijkstra for a Creeper.
+ * Use Ferris when computing Dijkstra for Ferris.
+ *
+ */
 #[derive(PartialEq)]
 pub enum Mode {
     Creeper,
@@ -46,25 +41,36 @@ impl Dijkstra {
     /**
      * Computes Dijkstra path using mode
      */
-    pub fn run(game: &Game, origin: &Location, target: &Location, mode: &Mode) -> Vec<Location> {
+    pub fn run(
+        game: &Game,
+        origin: &Location,
+        target: &Location,
+        mode: &Mode,
+    ) -> Result<Vec<Location>> {
         let mut path = vec![];
-        let distance_table = Dijkstra::build_distance_table(game, origin, target, mode);
+        let distance_table = Dijkstra::build_distance_table(game, origin, target, mode)?;
         let mut stack = vec![];
         stack.push(target.clone());
 
-        let mut previous_vertex = distance_table.get(&target.id()).unwrap().last_vertex;
+        let mut previous_vertex = distance_table
+            .get(&target.id())
+            .ok_or(anyhow!("cant get item {:?}", &target.id()))?
+            .last_vertex;
         while let Some(unwrapped_vertex) = previous_vertex {
             if unwrapped_vertex == origin.id() {
                 break;
             }
             let (row, column) = unwrapped_vertex;
             stack.push(Location { x: row, y: column });
-            previous_vertex = distance_table.get(&unwrapped_vertex).unwrap().last_vertex;
+            previous_vertex = distance_table
+                .get(&unwrapped_vertex)
+                .ok_or(anyhow!("cant get item {:?}", &target.id()))?
+                .last_vertex;
         }
         while let Some(location) = stack.pop() {
             path.push(location);
         }
-        path
+        Ok(path)
     }
 
     fn build_distance_table(
@@ -72,7 +78,7 @@ impl Dijkstra {
         origin: &Location,
         target: &Location,
         mode: &Mode,
-    ) -> HashMap<VertexId, DistanceInfo> {
+    ) -> Result<HashMap<VertexId, DistanceInfo>> {
         // generate all nodes.
         let mut distance_table: HashMap<VertexId, DistanceInfo> = HashMap::new();
         let mut vertex_info_map: HashMap<VertexId, VertexInfo> = HashMap::new();
@@ -82,7 +88,9 @@ impl Dijkstra {
                 distance_table.insert(Location { x: row, y: column }.id(), DistanceInfo::default());
             }
         }
-        let mut origin_distance_info = distance_table.get_mut(&origin.id()).unwrap();
+        let mut origin_distance_info = distance_table
+            .get_mut(&origin.id())
+            .ok_or(anyhow!("unable to get element"))?;
         origin_distance_info.distance = Some(0);
         origin_distance_info.last_vertex = Some(origin.id());
 
@@ -99,20 +107,24 @@ impl Dijkstra {
                 // Get the new distance, account for the weighted edge.
                 let distance = distance_table
                     .get(&neighbor)
-                    .unwrap()
+                    .ok_or(anyhow!("get neighbor failed"))?
                     .distance
                     .map(|distance| {
                         distance + game.get_weighted_edge(current_vertex, neighbor, target, mode)
                     })
                     .unwrap_or(game.get_weighted_edge(current_vertex, neighbor, target, mode));
 
-                // If we find a new shortest path to the neighbor update
+                // If we find a new shortest path to the neighbor, update
                 // the distance and the last vertex.
-                let neighbor_vertex = distance_table.get_mut(&neighbor).unwrap();
+                let neighbor_vertex = distance_table
+                    .get_mut(&neighbor)
+                    .ok_or(anyhow!("get neighbor failed"))?;
                 if neighbor_vertex.distance.is_none()
                     || neighbor_vertex.distance.unwrap() > distance
                 {
-                    let mut neighbor_vertex = distance_table.get_mut(&neighbor).unwrap();
+                    let mut neighbor_vertex = distance_table
+                        .get_mut(&neighbor)
+                        .ok_or(anyhow!("get neighbor failed"))?;
                     neighbor_vertex.distance = Some(distance);
                     neighbor_vertex.last_vertex = Some(current_vertex);
 
@@ -129,7 +141,7 @@ impl Dijkstra {
             }
         }
 
-        distance_table
+        Ok(distance_table)
     }
 }
 
@@ -159,7 +171,7 @@ mod tests {
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
-        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris).unwrap();
         let expected_shortest_path = vec![
             Location { x: 0, y: 1 },
             Location { x: 0, y: 2 },
@@ -185,7 +197,7 @@ mod tests {
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
-        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris).unwrap();
         let expected_shortest_path = vec![
             Location { x: 1, y: 1 },
             Location { x: 2, y: 2 },
@@ -211,7 +223,7 @@ mod tests {
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
-        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris).unwrap();
         let expected_shortest_path = vec![
             Location { x: 3, y: 3 },
             Location { x: 4, y: 4 },
@@ -241,7 +253,7 @@ mod tests {
         };
         let ferris_location = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
-        let shortest_path = Dijkstra::run(&game, ferris_location, target, &Mode::Ferris);
+        let shortest_path = Dijkstra::run(&game, ferris_location, target, &Mode::Ferris).unwrap();
         let expected_shortest_path = vec![
             Location { x: 3, y: 1 },
             Location { x: 4, y: 1 },
@@ -267,7 +279,8 @@ mod tests {
                 .location,
             &ferris_location,
             &Mode::Creeper,
-        );
+        )
+        .unwrap();
         assert_eq!(
             creeper_path,
             vec![Location { x: 3, y: 3 }, Location { x: 2, y: 2 }]
@@ -293,7 +306,7 @@ mod tests {
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
-        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris);
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Ferris).unwrap();
         let expected_shortest_path = vec![
             Location { x: 1, y: 1 },
             Location { x: 2, y: 2 },
@@ -321,7 +334,7 @@ mod tests {
         };
         let origin = &game.moves.last().unwrap().ferris.location;
         let target = &game.target;
-        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Creeper);
+        let shortest_path = Dijkstra::run(&game, origin, target, &Mode::Creeper).unwrap();
         let expected_shortest_path = vec![Location { x: 5, y: 4 }, Location { x: 5, y: 5 }];
         assert_eq!(shortest_path, expected_shortest_path);
     }

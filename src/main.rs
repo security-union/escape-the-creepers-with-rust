@@ -176,11 +176,12 @@ fn game_root_component() -> Html {
         (),
     );
 
-    let instructions = match (*game_state_2).status {
-        Status::Idle => "Press any arrow key to start",
-        Status::Won => "Congrats, Ferris is home! please refresh to start another game",
-        Status::Lost => "We lost :( please refresh to start another game.",
-        Status::Playing => "Help Ferris to get home, avoid creepers. (if you do not press the arrows, Ferris will move on it's own)",
+    let instructions = match &(*game_state_2).status {
+        Status::Idle => "Press any arrow key to start".to_string(),
+        Status::Won => "Congrats, Ferris is home! please refresh to start another game".to_string(),
+        Status::Lost => "We lost :( please refresh to start another game.".to_string(),
+        Status::Playing => "Help Ferris to get home, avoid creepers. (if you do not press the arrows, Ferris will move on it's own)".to_string(),
+        Status::Error(e) =>  format!("JEEEEZ, this is embarassing, but a bug creeped up {}", e.clone())
     };
     html! {
         <>
