@@ -194,10 +194,10 @@ fn game_root_component() -> Html {
         Status::Error(e) =>  format!("JEEEEZ, this is embarassing, but a bug creeped up {}", e.clone())
     };
 
-    let handle_click_restart = Closure::wrap(Box::new(move |event:web_sys::MouseEvent| { 
+    let handle_click_restart =  move |event:web_sys::MouseEvent| { 
         event.prevent_default();
         game_state_3.dispatch(GameEvents::InitGameWithCreepers(CREEPERS, ROWS, COLUMNS));
-     }) as Box<dyn FnMut(_)>);
+     };
 
     html! {
         <>
