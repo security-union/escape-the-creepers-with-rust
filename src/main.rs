@@ -17,6 +17,12 @@ pub struct GameContextProviderProps {
     #[prop_or_default]
     pub children: Children,
 }
+#[derive(PartialEq, Properties)]
+struct CellProps {
+    row: i32,
+    column: i32,
+}
+
 
 #[function_component(GameContextProvider)]
 pub fn GameContextProviderImpl(props: &GameContextProviderProps) -> Html {
@@ -28,6 +34,7 @@ pub fn GameContextProviderImpl(props: &GameContextProviderProps) -> Html {
         status: Status::Idle,
     });
 
+
     html! {
         <ContextProvider<UseReducerHandle<Game>> context={msg}>
             {props.children.clone()}
@@ -35,11 +42,6 @@ pub fn GameContextProviderImpl(props: &GameContextProviderProps) -> Html {
     }
 }
 
-#[derive(PartialEq, Properties)]
-struct CellProps {
-    row: i32,
-    column: i32,
-}
 
 #[function_component(Cell)]
 fn cell(p: &CellProps) -> Html {
@@ -140,14 +142,19 @@ fn cell(p: &CellProps) -> Html {
 
 #[function_component(GameRoot)]
 fn game_root_component() -> Html {
+
+    
     let game_state = Rc::new(use_context::<UseReducerHandle<Game>>().unwrap());
     let game_state_2 = game_state.clone();
+    let game_state_3 = game_state.clone();
     use_effect_with_deps(
         move |_| {
             game_state.dispatch(GameEvents::InitGameWithCreepers(CREEPERS, ROWS, COLUMNS));
             let game_state = game_state.clone();
             let game_state_2 = game_state.clone();
             let mut counter = 0;
+
+            
 
             let keyboard_callback = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
                 let direction = match event.key().as_str() {
@@ -176,6 +183,9 @@ fn game_root_component() -> Html {
         (),
     );
 
+    let restart_str = "Restart".to_string();
+    let is_home = game_state_2.status == Status::Won;
+
     let instructions = match &(*game_state_2).status {
         Status::Idle => "Press any arrow key to start".to_string(),
         Status::Won => "Congrats, Ferris is home! please refresh to start another game".to_string(),
@@ -183,14 +193,26 @@ fn game_root_component() -> Html {
         Status::Playing => "Help Ferris to get home, avoid creepers. (if you do not press the arrows, Ferris will move on it's own)".to_string(),
         Status::Error(e) =>  format!("JEEEEZ, this is embarassing, but a bug creeped up {}", e.clone())
     };
+
+    let handle_click_restart = Closure::wrap(Box::new(move |event:web_sys::MouseEvent| { 
+        event.prevent_default();
+        game_state_3.dispatch(GameEvents::InitGameWithCreepers(CREEPERS, ROWS, COLUMNS));
+     }) as Box<dyn FnMut(_)>);
+
     html! {
         <>
-        <div class="status">
-            <span class="center">{instructions}</span>
-        </div>
-        <div class="grid">
-            {row_generator()}
-        </div>
+            { if is_home { html! {
+                    <div class = "restart">
+                        <button onclick={handle_click_restart}>{&restart_str}</button>
+                    </div>
+                } } else { html! { <></> } } 
+            }
+            <div class="status">
+                <span class="center">{instructions}</span>
+            </div>
+            <div class="grid">
+                {row_generator()}
+            </div>
         </>
     }
 }
