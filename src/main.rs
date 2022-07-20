@@ -202,8 +202,8 @@ fn game_root_component() -> Html {
     html! {
         <>
             { if is_home { html! {
-                    <div class = "restart">
-                        <button onclick={handle_click_restart}>{&restart_str}</button>
+                    <div class = "restart" type="restart">
+                        <button class="restart_button" onclick={handle_click_restart}>{&restart_str}</button>
                     </div>
                 } } else { html! { <></> } } 
             }
