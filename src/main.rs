@@ -142,8 +142,6 @@ fn cell(p: &CellProps) -> Html {
 
 #[function_component(GameRoot)]
 fn game_root_component() -> Html {
-
-    
     let game_state = Rc::new(use_context::<UseReducerHandle<Game>>().unwrap());
     let game_state_2 = game_state.clone();
     let game_state_3 = game_state.clone();
@@ -153,8 +151,6 @@ fn game_root_component() -> Html {
             let game_state = game_state.clone();
             let game_state_2 = game_state.clone();
             let mut counter = 0;
-
-            
 
             let keyboard_callback = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
                 let direction = match event.key().as_str() {
