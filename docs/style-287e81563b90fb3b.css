@@ -1,0 +1,97 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(24, 4%);
+  grid-template-rows: repeat(12, 8%);
+  width: 100%;
+  height: 100%;
+  min-width: 1200px;
+  column-gap: 0;
+  row-gap: 0;
+  margin-left: 2rem;
+}
+
+.restart {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: black;
+  transition: opacity 2s ease-out;
+}
+
+.restart_button {
+  background: rgb(58, 131, 247);
+  display: flex;
+  box-sizing: content-box;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  font-size: 2rem;
+  color: white;
+  cursor: pointer;
+  width: 200px;
+  height: 4%;
+}
+
+.restart[type="restart"] {
+  opacity: 80%;
+}
+
+.cell {
+  display: flex;
+  font-size: 2px;
+  background: url("./thumbnail/lawn.jpeg");
+  background-size: 80px 80px;
+  width: 100;
+  height: 100;
+  border: 1px solid rgb(19, 42, 19);
+  top: 50%;
+  left: 50%;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.5s linear;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  min-width: 1200px;
+  background: url("./thumbnail/lawn.jpeg");
+  transition: all 0.5s linear;
+  overflow: hidden;
+}
+
+img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.blue_patch {
+  width: 100%;
+  height: 100%;
+  background-color: blue;
+  opacity: 50%;
+}
+
+.status {
+  font-size: 2em;
+  color: white;
+  background-color: black;
+  font-family: "Helvetica";
+}
+
+.center {
+  margin: auto;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
+  font-family: "Helvetica";
+}

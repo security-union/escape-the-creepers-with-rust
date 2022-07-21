@@ -11,6 +11,7 @@ use yew::{prelude::*, virtual_dom::VNode};
 const ROWS: i32 = 24;
 const COLUMNS: i32 = 12;
 const CREEPERS: i16 = 10;
+const RESTART_TEXT :&str = "Restart";
 
 #[derive(Properties, Debug, PartialEq)]
 pub struct GameContextProviderProps {
@@ -179,9 +180,7 @@ fn game_root_component() -> Html {
         (),
     );
 
-    let restart_str = "Restart".to_string();
     let is_home = game_state_2.status == Status::Won;
-
     let instructions = match &(*game_state_2).status {
         Status::Idle => "Press any arrow key to start".to_string(),
         Status::Won => "Congrats, Ferris is home! please refresh to start another game".to_string(),
@@ -199,7 +198,7 @@ fn game_root_component() -> Html {
         <>
             { if is_home { html! {
                     <div class = "restart" type="restart">
-                        <button class="restart_button" onclick={handle_click_restart}>{&restart_str}</button>
+                        <button class="restart_button" onclick={handle_click_restart}>{&RESTART_TEXT}</button>
                     </div>
                 } } else { html! { <></> } } 
             }
