@@ -611,16 +611,16 @@ function getImports() {
         const ret = wasm.memory;
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper572 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 16, __wbg_adapter_26);
+    imports.wbg.__wbindgen_closure_wrapper594 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 20, __wbg_adapter_26);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper574 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 14, __wbg_adapter_29);
+    imports.wbg.__wbindgen_closure_wrapper596 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 18, __wbg_adapter_29);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper3696 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 303, __wbg_adapter_32);
+    imports.wbg.__wbindgen_closure_wrapper3768 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 312, __wbg_adapter_32);
         return addHeapObject(ret);
     };
 
@@ -656,7 +656,7 @@ function initSync(bytes) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('survival-5bcded520cec3519_bg.wasm', import.meta.url);
+        input = new URL('survival-93e8c7b1b59c81b1_bg.wasm', import.meta.url);
     }
     const imports = getImports();
 
